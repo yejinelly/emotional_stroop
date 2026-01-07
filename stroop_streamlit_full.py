@@ -5,6 +5,14 @@ from pathlib import Path
 from datetime import datetime
 import random
 
+# Google Sheets 백업용
+try:
+    import gspread
+    from google.oauth2.service_account import Credentials
+    GSPREAD_AVAILABLE = True
+except ImportError:
+    GSPREAD_AVAILABLE = False
+
 # 페이지 설정
 st.set_page_config(
     page_title="Emotional Word Stroop Task (Short)",
@@ -315,8 +323,53 @@ def save_data():
         filename = output_dir / f"{st.session_state.participant_id}_short_{timestamp}.csv"
 
         df.to_csv(filename, index=False, encoding='utf-8-sig')
-        return filename
-    return None
+        return filename, df
+    return None, None
+
+
+def backup_to_google_sheets(df):
+    """Google Sheets에 데이터 백업"""
+    if not GSPREAD_AVAILABLE:
+        return False, "gspread 라이브러리가 설치되지 않았습니다."
+
+    try:
+        # Streamlit secrets에서 credentials 가져오기
+        credentials_dict = st.secrets["gcp_service_account"]
+
+        scopes = [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive'
+        ]
+
+        credentials = Credentials.from_service_account_info(
+            dict(credentials_dict),
+            scopes=scopes
+        )
+
+        gc = gspread.authorize(credentials)
+
+        # Spreadsheet ID (emotional stroop responses)
+        SPREADSHEET_ID = "1qz17jEAWlJcP-erMPM99qRE9SPa2m7GqrYzzBnj25NE"
+        spreadsheet = gc.open_by_key(SPREADSHEET_ID)
+
+        # 첫 번째 시트 사용
+        worksheet = spreadsheet.sheet1
+
+        # 기존 데이터가 있는지 확인
+        existing_data = worksheet.get_all_values()
+
+        if len(existing_data) == 0:
+            # 헤더 추가
+            worksheet.append_row(df.columns.tolist())
+
+        # 데이터 추가
+        for _, row in df.iterrows():
+            worksheet.append_row(row.tolist())
+
+        return True, "Google Sheets 백업 완료"
+
+    except Exception as e:
+        return False, f"백업 실패: {str(e)}"
 
 
 # ========== 메인 앱 로직 ==========
@@ -561,10 +614,23 @@ if st.session_state.task_completed:
     st.success("모든 시행을 완료했습니다. 감사합니다!")
 
     # 데이터 저장
-    saved_file = save_data()
-    if saved_file:
-        st.markdown(f"### 저장된 파일")
-        st.code(f"{st.session_state.participant_id}_short_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+    saved_file, df = save_data()
+
+    if df is not None:
+        # Google Sheets 백업 (자동)
+        backup_success, backup_msg = backup_to_google_sheets(df)
+        if backup_success:
+            st.info("📊 데이터가 자동으로 백업되었습니다.")
+
+        # CSV 다운로드 버튼
+        csv_data = df.to_csv(index=False, encoding='utf-8-sig')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        st.download_button(
+            label="📥 결과 CSV 다운로드",
+            data=csv_data,
+            file_name=f"{st.session_state.participant_id}_short_{timestamp}.csv",
+            mime="text/csv"
+        )
 
     st.stop()
 
