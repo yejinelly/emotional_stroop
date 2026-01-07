@@ -613,24 +613,33 @@ if st.session_state.task_completed:
     st.title("✅ 과제 완료!")
     st.success("모든 시행을 완료했습니다. 감사합니다!")
 
-    # 데이터 저장
-    saved_file, df = save_data()
+    # 데이터 저장 (한 번만 실행)
+    if 'final_df' not in st.session_state:
+        saved_file, df = save_data()
+        if df is not None:
+            st.session_state.final_df = df
+            # Google Sheets 백업 (한 번만)
+            backup_success, backup_msg = backup_to_google_sheets(df)
+            st.session_state.backup_result = (backup_success, backup_msg)
 
-    if df is not None:
-        # Google Sheets 백업 (자동)
-        backup_success, backup_msg = backup_to_google_sheets(df)
-        if backup_success:
-            st.info("📊 데이터가 자동으로 백업되었습니다.")
-        else:
-            st.warning(f"⚠️ Google Sheets 백업 실패: {backup_msg}")
+    # 저장된 결과 표시
+    if 'final_df' in st.session_state:
+        df = st.session_state.final_df
+
+        # 백업 결과 표시
+        if 'backup_result' in st.session_state:
+            backup_success, backup_msg = st.session_state.backup_result
+            if backup_success:
+                st.info("📊 데이터가 자동으로 백업되었습니다.")
+            else:
+                st.warning(f"⚠️ Google Sheets 백업 실패: {backup_msg}")
 
         # CSV 다운로드 버튼
         csv_data = df.to_csv(index=False, encoding='utf-8-sig')
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         st.download_button(
             label="📥 결과 CSV 다운로드",
             data=csv_data,
-            file_name=f"{st.session_state.participant_id}_short_{timestamp}.csv",
+            file_name=f"{st.session_state.participant_id}_short_result.csv",
             mime="text/csv"
         )
 
