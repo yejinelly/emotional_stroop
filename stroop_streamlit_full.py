@@ -648,19 +648,6 @@ if st.session_state.task_completed:
             st.warning(st.session_state.get('backup_message', '백업 설정이 필요합니다.'))
             st.info("💡 CSV 파일을 다운로드하여 수동으로 저장해주세요.")
 
-        # 결과 요약
-        st.markdown("---")
-        st.markdown("### 📊 결과 요약")
-        exp_df = df[df['phase'] == 'experimental']
-        accuracy = exp_df['accuracy'].mean() * 100
-        mean_rt = exp_df['rt'].mean()
-
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("정확도", f"{accuracy:.1f}%")
-        with col2:
-            st.metric("평균 반응시간", f"{mean_rt:.3f}초")
-
     st.stop()
 
 
