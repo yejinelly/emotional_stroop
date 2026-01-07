@@ -306,23 +306,86 @@ def record_response(trial, response, is_practice=False):
     st.rerun()
 
 
+def create_summary_row():
+    """참가자별 요약 데이터 생성 (한 행)"""
+    if len(st.session_state.responses) == 0:
+        return None
+
+    # Experimental 데이터만 사용
+    exp_df = pd.DataFrame(st.session_state.responses)
+
+    # 기본 정보
+    summary = {
+        'participant_id': st.session_state.participant_id,
+        'date': datetime.now().strftime("%Y-%m-%d"),
+        'timestamp': datetime.now().isoformat(),
+    }
+
+    # 조건별 요약 통계 (정답 trial만 사용하여 RT 계산)
+    for condition in ['positive', 'negative', 'neutral']:
+        cond_data = exp_df[exp_df['condition'] == condition]
+        correct_data = cond_data[cond_data['accuracy'] == 1]
+
+        summary[f'rt_{condition}_mean'] = round(correct_data['rt'].mean(), 4) if len(correct_data) > 0 else None
+        summary[f'rt_{condition}_sd'] = round(correct_data['rt'].std(), 4) if len(correct_data) > 1 else None
+        summary[f'acc_{condition}'] = round(cond_data['accuracy'].mean(), 4) if len(cond_data) > 0 else None
+        summary[f'n_{condition}'] = len(cond_data)
+
+    # 간섭 점수 (negative/positive RT - neutral RT)
+    if summary.get('rt_neutral_mean') and summary.get('rt_negative_mean'):
+        summary['interference_negative'] = round(summary['rt_negative_mean'] - summary['rt_neutral_mean'], 4)
+    if summary.get('rt_neutral_mean') and summary.get('rt_positive_mean'):
+        summary['interference_positive'] = round(summary['rt_positive_mean'] - summary['rt_neutral_mean'], 4)
+
+    # 전체 통계
+    correct_all = exp_df[exp_df['accuracy'] == 1]
+    summary['rt_overall_mean'] = round(correct_all['rt'].mean(), 4) if len(correct_all) > 0 else None
+    summary['acc_overall'] = round(exp_df['accuracy'].mean(), 4)
+    summary['n_total'] = len(exp_df)
+
+    # Practice 원시 데이터
+    practice_df = pd.DataFrame(st.session_state.practice_responses)
+    for i, (_, row) in enumerate(practice_df.iterrows(), 1):
+        summary[f'p{i}_word'] = row['word']
+        summary[f'p{i}_color'] = row['color']
+        summary[f'p{i}_resp'] = row['response']
+        summary[f'p{i}_acc'] = row['accuracy']
+        summary[f'p{i}_rt'] = round(row['rt'], 4)
+
+    # Practice 요약
+    if len(practice_df) > 0:
+        practice_correct = practice_df[practice_df['accuracy'] == 1]
+        summary['practice_acc'] = round(practice_df['accuracy'].mean(), 4)
+        summary['practice_rt_mean'] = round(practice_correct['rt'].mean(), 4) if len(practice_correct) > 0 else None
+
+    # Experimental 원시 데이터 (trial별로 컬럼에 추가)
+    for i, (_, row) in enumerate(exp_df.iterrows(), 1):
+        summary[f't{i}_word'] = row['word']
+        summary[f't{i}_cond'] = row['condition'][:3]  # pos/neg/neu
+        summary[f't{i}_color'] = row['color']
+        summary[f't{i}_resp'] = row['response']
+        summary[f't{i}_acc'] = row['accuracy']
+        summary[f't{i}_rt'] = round(row['rt'], 4)
+
+    return pd.DataFrame([summary])
+
+
 def save_data():
     """데이터 저장 함수"""
     if len(st.session_state.responses) > 0:
-        # Practice + Experimental 데이터 합치기
-        all_responses = st.session_state.practice_responses + st.session_state.responses
-        df = pd.DataFrame(all_responses)
+        df = create_summary_row()
 
-        # data/responses 폴더 생성
-        output_dir = Path("data/responses")
-        output_dir.mkdir(parents=True, exist_ok=True)
+        if df is not None:
+            # data/responses 폴더 생성
+            output_dir = Path("data/responses")
+            output_dir.mkdir(parents=True, exist_ok=True)
 
-        # 파일명: participant_id_short_timestamp.csv
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = output_dir / f"{st.session_state.participant_id}_short_{timestamp}.csv"
+            # 파일명: participant_id_short_timestamp.csv
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = output_dir / f"{st.session_state.participant_id}_short_{timestamp}.csv"
 
-        df.to_csv(filename, index=False, encoding='utf-8-sig')
-        return filename, df
+            df.to_csv(filename, index=False, encoding='utf-8-sig')
+            return filename, df
     return None, None
 
 
