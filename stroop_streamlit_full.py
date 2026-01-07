@@ -358,9 +358,14 @@ def backup_to_google_sheets(df):
         # 기존 데이터가 있는지 확인
         existing_data = worksheet.get_all_values()
 
-        if len(existing_data) == 0:
-            # 헤더 추가
-            worksheet.append_row(df.columns.tolist())
+        # 헤더 확인 및 추가
+        expected_headers = df.columns.tolist()
+        if len(existing_data) == 0 or existing_data[0] != expected_headers:
+            if len(existing_data) == 0:
+                worksheet.append_row(expected_headers)
+            else:
+                # 첫 행이 헤더가 아니면 맨 위에 헤더 삽입
+                worksheet.insert_row(expected_headers, 1)
 
         # 데이터 추가
         for _, row in df.iterrows():
@@ -634,8 +639,8 @@ if st.session_state.task_completed:
             else:
                 st.warning(f"⚠️ Google Sheets 백업 실패: {backup_msg}")
 
-        # CSV 다운로드 버튼
-        csv_data = df.to_csv(index=False, encoding='utf-8-sig')
+        # CSV 다운로드 버튼 (Excel 호환 인코딩)
+        csv_data = df.to_csv(index=False).encode('utf-8-sig')
         st.download_button(
             label="📥 결과 CSV 다운로드",
             data=csv_data,
