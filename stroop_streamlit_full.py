@@ -7,7 +7,7 @@ import random
 
 # 페이지 설정
 st.set_page_config(
-    page_title="Emotional Word Stroop Task",
+    page_title="Emotional Word Stroop Task (Short)",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
@@ -26,24 +26,55 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 
+    /* Deploy 버튼과 메뉴 숨기기 */
+    [data-testid="stToolbar"] {display: none !important;}
+    [data-testid="stDecoration"] {display: none !important;}
+    .stDeployButton {display: none !important;}
+    button[kind="header"] {display: none !important;}
+
     /* Progress bar 숨기기 */
     .stProgress {display: none !important;}
 
     /* Caption (trial 번호) 숨기기 */
     .stCaptionContainer {display: none !important;}
 
-    /* 반응 버튼만 숨기기 (키보드만 사용) - 화면 밖으로 이동 */
-    button[kind="primary"] {
-        position: absolute !important;
-        left: -9999px !important;
-        opacity: 0 !important;
+    /* 반응 버튼만 숨기기 (키보드만 사용) - 시각적으로만 숨김 */
+    .stColumn button {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        opacity: 0.01 !important;
+        width: 1px !important;
+        height: 1px !important;
+        overflow: hidden !important;
+        pointer-events: auto !important;
+        z-index: -1 !important;
     }
 
-    /* 일반 버튼들 스타일 (시작, 다운로드 등) */
-    button:not([kind="primary"]) {
+    /* 일반 버튼들 스타일 (시작, 다운로드 등) - 모든 일반 버튼 */
+    button {
         background-color: #FFFFFF !important;
         color: #000000 !important;
         border: 2px solid #FFFFFF !important;
+        visibility: visible !important;
+    }
+
+    button *,
+    button p,
+    button div,
+    button span,
+    button::before,
+    button::after {
+        color: #000000 !important;
+    }
+
+    /* 버튼 내부 모든 요소 검은색 */
+    .stButton button,
+    .stButton button *,
+    .stButton button p,
+    .stButton button div {
+        color: #000000 !important;
+        background-color: #FFFFFF !important;
     }
 
     /* Download 버튼 */
@@ -63,26 +94,31 @@ st.markdown("""
         color: #FFFFFF !important;
     }
 
-    /* Fixation cross - 흰색 */
+    /* Fixation cross - 흰색, 화면 중앙 고정 */
     .fixation-cross {
         color: #FFFFFF;
         font-size: 80px;
         text-align: center;
-        margin: 35vh 0;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100%;
         animation: fadeOut 0.5s ease-in-out forwards;
+        z-index: 1000;
     }
 
-    /* Stimulus word - 화면 중앙 */
-    .stimulus-word {
+    /* Stimulus word - 화면 중앙 고정 */
+    .stimulus-container {
         text-align: center;
-        margin: 35vh 0;
-        font-size: 12vh;
-        font-weight: bold;
-    }
-
-    .stimulus-fade-in {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100%;
         animation: fadeIn 0.5s ease-in-out 0.5s forwards;
         opacity: 0;
+        z-index: 1000;
     }
 
     @keyframes fadeOut {
@@ -96,13 +132,58 @@ st.markdown("""
     }
 
     /* 지시사항 텍스트 흰색 */
-    .element-container, p, h1, h2, h3, li {
+    .element-container p, li {
         color: #FFFFFF !important;
     }
 
-    /* Success/Error 메시지 */
+    /* 제목들은 흰색 (일반 텍스트만) */
+    .stApp h2,
+    .stApp h3 {
+        color: #FFFFFF !important;
+    }
+
+    /* Title 텍스트 흰색 */
+    .stTitle {
+        color: #FFFFFF !important;
+    }
+
+    /* Success/Error 메시지 - 화면 상단에 고정 */
     .stAlert {
-        background-color: transparent !important;
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        color: #FFFFFF !important;
+        border: 2px solid #FFFFFF !important;
+        position: fixed !important;
+        top: 20px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        z-index: 999 !important;
+        width: auto !important;
+        max-width: 400px !important;
+    }
+
+    .stAlert p, .stAlert div {
+        color: #FFFFFF !important;
+    }
+
+    /* Success 메시지 (정답) - 초록 테두리 */
+    .stSuccess {
+        border-color: #4CAF50 !important;
+    }
+
+    /* Error 메시지 (오답) - 빨강 테두리 */
+    .stError {
+        border-color: #f44336 !important;
+    }
+
+    /* Info 메시지 */
+    .stInfo {
+        background-color: rgba(33, 150, 243, 0.1) !important;
+        color: #FFFFFF !important;
+        border: 2px solid #2196F3 !important;
+    }
+
+    .stInfo p, .stInfo div {
+        color: #FFFFFF !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -132,49 +213,59 @@ if 'start_time' not in st.session_state:
     st.session_state.start_time = None
 if 'participant_id' not in st.session_state:
     st.session_state.participant_id = None
-if 'age' not in st.session_state:
-    st.session_state.age = None
-if 'gender' not in st.session_state:
-    st.session_state.gender = None
 if 'task_completed' not in st.session_state:
     st.session_state.task_completed = False
-if 'show_fixation' not in st.session_state:
-    st.session_state.show_fixation = False
 if 'last_response_correct' not in st.session_state:
     st.session_state.last_response_correct = None
 
 
-def load_practice_trials():
-    """Practice trials 로드 - 24 trials (6 base trials × 4 blocks)"""
-    base_trials = pd.read_csv("stimuli/practice_trials_korean.csv")
+def create_practice_trials():
+    """Practice trials 생성 - 6 trials (색상 단어, congruent)"""
+    color_words = [
+        {'text': '빨강', 'letterColor': 'red', 'corrAns': 'red', 'condition': 'practice'},
+        {'text': '파랑', 'letterColor': 'blue', 'corrAns': 'blue', 'condition': 'practice'},
+        {'text': '초록', 'letterColor': 'green', 'corrAns': 'green', 'condition': 'practice'},
+        {'text': '빨강', 'letterColor': 'red', 'corrAns': 'red', 'condition': 'practice'},
+        {'text': '파랑', 'letterColor': 'blue', 'corrAns': 'blue', 'condition': 'practice'},
+        {'text': '초록', 'letterColor': 'green', 'corrAns': 'green', 'condition': 'practice'},
+    ]
+    trials = pd.DataFrame(color_words)
+    return trials.sample(frac=1).reset_index(drop=True)
 
-    # 4 blocks 생성
-    all_trials = []
-    for _ in range(4):
-        block = base_trials.copy()
-        block = block.sample(frac=1).reset_index(drop=True)  # Shuffle
-        all_trials.append(block)
 
-    trials = pd.concat(all_trials, ignore_index=True)
-    return trials
+def create_short_exp_trials():
+    """Short experimental trials 생성 - 30 trials (10 words × 3 valences)"""
 
+    # 각 정서가별로 10개 단어 선택 (word_translation_144.csv에서 처음 10개씩)
+    words = {
+        'positive': ['달', '걷기', '환호', '행운', '미소', '안녕', '친구', '사랑', '평온', '농담'],
+        'negative': ['방귀', '전이', '사기당한', '상처', '공포', '침뱉다', '투우', '부상', '위조', '목조르다'],
+        'neutral': ['회전', '모험적인', '모양', '부분적', '잠꾸러기', '부르다', '넓은', '목구멍', '참석', '굴뚝']
+    }
 
-def load_exp_trials():
-    """Experimental trials 로드 - 144 trials from CSV"""
-    trials = pd.read_csv("stimuli/exp_trials_korean.csv")
+    colors = ['red', 'blue', 'green']
 
-    # GitHub 원본은 block shuffling만 함 (within-block order 유지)
-    # 여기서는 전체 shuffle (단순화)
-    # 나중에 16 blocks로 나누고 block order만 shuffle 가능
-    trials = trials.sample(frac=1).reset_index(drop=True)
-    return trials
+    trials = []
+    for valence, word_list in words.items():
+        for word in word_list:
+            # 각 단어를 랜덤한 색상 하나로 표시
+            color = random.choice(colors)
+            trials.append({
+                'text': word,
+                'letterColor': color,
+                'corrAns': color,
+                'condition': valence
+            })
+
+    # 전체 무선화
+    random.shuffle(trials)
+    return pd.DataFrame(trials)
 
 
 def record_response(trial, response, is_practice=False):
     """반응 기록 함수"""
     rt = time.time() - st.session_state.start_time
 
-    # letterColor와 corrAns는 같은 값
     correct_answer = trial.get('corrAns', trial.get('letterColor'))
     accuracy = 1 if response == correct_answer else 0
 
@@ -219,9 +310,9 @@ def save_data():
         output_dir = Path("data/responses")
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # 파일명: participant_id_timestamp.csv
+        # 파일명: participant_id_short_timestamp.csv
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = output_dir / f"{st.session_state.participant_id}_{timestamp}.csv"
+        filename = output_dir / f"{st.session_state.participant_id}_short_{timestamp}.csv"
 
         df.to_csv(filename, index=False, encoding='utf-8-sig')
         return filename
@@ -232,23 +323,20 @@ def save_data():
 
 # 1. 참가자 정보 입력 화면
 if not st.session_state.task_started:
-    st.title("🧠 Emotional Word Stroop Task")
+    st.title("Emotional Word Stroop Task (Short Version)")
     st.markdown("### 참가자 정보")
+    st.caption("🚀 빠른 테스트용 버전 (30 trials)")
 
-    st.info("⚠️ **시작 전**: 전체화면 모드로 전환해주세요 (Mac: Cmd+Ctrl+F, Windows: F11)")
+    st.info("⚠️ **시작 전**: 전체화면 모드로 전환해주세요  \n(Mac: Cmd+Ctrl+F, Windows: F11)")
 
     participant_id = st.text_input("참가자 ID:", placeholder="예: P001")
-    age = st.number_input("연령:", min_value=18, max_value=100, value=25)
-    gender = st.selectbox("성별:", ["선택 안 함", "남성", "여성", "기타"])
 
-    if st.button("과제 시작", type="primary"):
+    if st.button("과제 시작"):
         if participant_id:
             st.session_state.participant_id = participant_id
-            st.session_state.age = age
-            st.session_state.gender = gender if gender != "선택 안 함" else None
             st.session_state.task_started = True
-            # Practice trials 로드
-            st.session_state.practice_trials = load_practice_trials()
+            # Practice trials 생성
+            st.session_state.practice_trials = create_practice_trials()
             st.rerun()
         else:
             st.error("참가자 ID를 입력해주세요.")
@@ -260,20 +348,6 @@ if not st.session_state.task_started:
 if not st.session_state.practice_completed:
     if not st.session_state.practice_instructions_shown:
         st.title("📋 연습 과제 안내")
-
-        # ========== Phase 1 개선사항: 전체화면 안내 추가 ==========
-        st.warning("""
-        ### ⚠️ 실험 시작 전 준비사항
-
-        **1. 전체화면 모드로 전환해주세요:**
-        - Windows: `F11` 키
-        - Mac: `Control + Command + F`
-
-        **2. 조용한 환경을 확보해주세요:**
-        - 알림, 다른 앱을 모두 종료
-        - 휴대폰을 무음으로 설정
-        """)
-
         st.markdown("""
         ### 지시사항
 
@@ -283,14 +357,13 @@ if not st.session_state.practice_completed:
            - 🔴 **빨강**: **F** 키
            - 🟢 **초록**: **J** 키
            - 🔵 **파랑**: **Space bar**
-        4. 최대한 **빠르고 정확하게** 반응해주세요.
 
-        먼저 **연습 시행 24번**을 진행합니다. 정답/오답 피드백이 제공됩니다.
+        먼저 **연습 시행 6번**을 진행합니다. 정답/오답 피드백이 제공됩니다.
 
         준비가 되면 아래 버튼을 눌러주세요.
         """)
 
-        if st.button("연습 시작", type="primary"):
+        if st.button("연습 시작"):
             st.session_state.practice_instructions_shown = True
             st.rerun()
 
@@ -300,19 +373,46 @@ if not st.session_state.practice_completed:
     if st.session_state.practice_trial_num < len(st.session_state.practice_trials):
         trial = st.session_state.practice_trials.iloc[st.session_state.practice_trial_num]
 
-        # 피드백 표시 (이전 trial)
+        # 피드백 표시 (이전 trial) - 박스 안에
         if st.session_state.last_response_correct is not None:
             if st.session_state.last_response_correct == 1:
-                st.success("✅ 정답!")
+                st.markdown('''
+                <div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
+                            background-color: rgba(76, 175, 80, 0.2);
+                            border: 2px solid #4CAF50;
+                            color: #4CAF50;
+                            padding: 15px 30px;
+                            border-radius: 8px;
+                            font-size: 24px;
+                            font-weight: bold;
+                            z-index: 999;">
+                    정답
+                </div>
+                ''', unsafe_allow_html=True)
             else:
-                st.error("❌ 오답")
+                st.markdown('''
+                <div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
+                            background-color: rgba(244, 67, 54, 0.2);
+                            border: 2px solid #f44336;
+                            color: #f44336;
+                            padding: 15px 30px;
+                            border-radius: 8px;
+                            font-size: 24px;
+                            font-weight: bold;
+                            z-index: 999;">
+                    오답
+                </div>
+                ''', unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True)
 
-        # ========== Phase 1 개선사항: vh 단위 자극 제시 + Fixation cross ==========
+        # Fixation cross + 자극 제시
         color_hex_map = {'red': '#FF0000', 'green': '#00FF00', 'blue': '#0000FF'}
         st.markdown(
             f'''
             <div class="fixation-cross">+</div>
-            <div class="stimulus-word stimulus-fade-in" style="color:{color_hex_map[trial["letterColor"]]};">{trial["text"]}</div>
+            <div class="stimulus-container">
+                <h1 style="color:{color_hex_map[trial["letterColor"]]}; font-size:80px; font-weight:bold; text-align:center;">{trial["text"]}</h1>
+            </div>
             ''',
             unsafe_allow_html=True
         )
@@ -321,45 +421,86 @@ if not st.session_state.practice_completed:
         if st.session_state.start_time is None:
             st.session_state.start_time = time.time()
 
+        st.markdown("<br>", unsafe_allow_html=True)
+
         # 키보드 이벤트 리스너 (F, J, Space)
         from streamlit.components.v1 import html
         html(f"""
         <script>
-        const tryNum = {st.session_state.practice_trial_num};
+        (function() {{
+            const tryNum = {st.session_state.practice_trial_num};
 
-        function handleKeyPress(event) {{
-            const key = event.key.toLowerCase();
-            let buttonSelector = null;
-
-            if (key === 'f') {{
-                buttonSelector = 'button[kind="primary"]:has-text("🔴 빨강")';
-            }} else if (key === 'j') {{
-                buttonSelector = 'button[kind="primary"]:has-text("🟢 초록")';
-            }} else if (key === ' ' || key === 'spacebar') {{
-                event.preventDefault();
-                buttonSelector = 'button[kind="primary"]:has-text("🔵 파랑")';
+            // Remove ALL previous listeners
+            if (window.stroopKeyHandler) {{
+                parent.document.removeEventListener('keydown', window.stroopKeyHandler);
             }}
 
-            if (buttonSelector) {{
-                const buttons = parent.document.querySelectorAll('button');
-                for (let btn of buttons) {{
-                    if (btn.textContent.includes('🔴 빨강') && key === 'f') {{
-                        btn.click();
-                        break;
-                    }} else if (btn.textContent.includes('🟢 초록') && key === 'j') {{
-                        btn.click();
-                        break;
-                    }} else if (btn.textContent.includes('🔵 파랑') && (key === ' ' || key === 'spacebar')) {{
-                        btn.click();
-                        break;
-                    }}
+            // Define new handler
+            window.stroopKeyHandler = function(event) {{
+                const code = event.code;  // Physical key code (KeyF, KeyJ, Space)
+
+                console.log('Key code:', code, 'Key:', event.key);
+
+                // Use event.code to detect physical keys (works with Korean/English keyboard)
+                if (code !== 'Space' && code !== 'KeyF' && code !== 'KeyJ') {{
+                    return;
                 }}
-            }}
-        }}
 
-        // Remove previous listener if exists
-        parent.document.removeEventListener('keydown', handleKeyPress);
-        parent.document.addEventListener('keydown', handleKeyPress);
+                event.preventDefault();
+                event.stopPropagation();
+
+                console.log('Handling key code:', code);
+
+                // Wait for DOM to be ready, then find buttons
+                setTimeout(function() {{
+                    // Try multiple methods to find buttons
+                    const allButtons = parent.document.querySelectorAll('button');
+                    console.log('Total buttons found:', allButtons.length);
+
+                    let redBtn = null, blueBtn = null, greenBtn = null;
+
+                    allButtons.forEach((btn, idx) => {{
+                        const text = btn.textContent || btn.innerText;
+                        console.log('Button', idx, ':', text);
+
+                        if (text.includes('🔴') || text.includes('빨강')) {{
+                            redBtn = btn;
+                            console.log('Found RED button');
+                        }} else if (text.includes('🔵') || text.includes('파랑')) {{
+                            blueBtn = btn;
+                            console.log('Found BLUE button');
+                        }} else if (text.includes('🟢') || text.includes('초록')) {{
+                            greenBtn = btn;
+                            console.log('Found GREEN button');
+                        }}
+                    }});
+
+                    // Click the appropriate button based on physical key code
+                    let targetBtn = null;
+                    if (code === 'KeyF') {{
+                        targetBtn = redBtn;
+                        console.log('F key (KeyF) -> Red button:', !!redBtn);
+                    }} else if (code === 'Space') {{
+                        targetBtn = blueBtn;
+                        console.log('Space key -> Blue button:', !!blueBtn);
+                    }} else if (code === 'KeyJ') {{
+                        targetBtn = greenBtn;
+                        console.log('J key (KeyJ) -> Green button:', !!greenBtn);
+                    }}
+
+                    if (targetBtn) {{
+                        console.log('Clicking button!');
+                        targetBtn.click();
+                    }} else {{
+                        console.log('No button to click!');
+                    }}
+                }}, 100);
+            }};
+
+            // Add the new listener
+            parent.document.addEventListener('keydown', window.stroopKeyHandler);
+            console.log('Keyboard handler installed for trial', tryNum);
+        }})();
         </script>
         """, height=0)
 
@@ -393,19 +534,22 @@ if not st.session_state.instructions_exp_shown:
     st.markdown("""
     ### 연습이 끝났습니다!
 
-    이제 **본 과제 144번**을 진행합니다.
+    이제 **본 과제 30번**을 진행합니다.
 
-    - 과제 중간에 **3번의 휴식** 기회가 있습니다.
     - **정답/오답 피드백은 제공되지 않습니다.**
     - 앞의 연습과 동일하게, **글자의 색깔만** 판단해주세요.
+    - 키보드로 색깔을 선택하세요:
+       - 🔴 **빨강**: **F** 키
+       - 🟢 **초록**: **J** 키
+       - 🔵 **파랑**: **Space bar**
 
     준비가 되면 아래 버튼을 눌러주세요.
     """)
 
-    if st.button("본 과제 시작", type="primary"):
+    if st.button("본 과제 시작"):
         st.session_state.instructions_exp_shown = True
-        # Experimental trials 로드
-        st.session_state.exp_trials = load_exp_trials()
+        # Experimental trials 생성
+        st.session_state.exp_trials = create_short_exp_trials()
         st.rerun()
 
     st.stop()
@@ -419,34 +563,8 @@ if st.session_state.task_completed:
     # 데이터 저장
     saved_file = save_data()
     if saved_file:
-        st.info(f"데이터가 저장되었습니다: {saved_file}")
-
-    # 기술통계 표시 (Experimental만)
-    if len(st.session_state.responses) > 0:
-        df_responses = pd.DataFrame(st.session_state.responses)
-
-        st.markdown("### 📊 수행 결과 (본 과제)")
-
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("전체 정확도", f"{df_responses['accuracy'].mean():.1%}")
-        with col2:
-            st.metric("평균 반응시간", f"{df_responses['rt'].mean():.2f}초")
-
-        # 정서가별 정확도
-        st.markdown("### 정서가별 정확도")
-        valence_acc = df_responses.groupby('condition')['accuracy'].mean()
-        st.bar_chart(valence_acc)
-
-        # 다운로드 버튼
-        all_responses = st.session_state.practice_responses + st.session_state.responses
-        csv = pd.DataFrame(all_responses).to_csv(index=False, encoding='utf-8-sig')
-        st.download_button(
-            label="📥 데이터 다운로드 (CSV)",
-            data=csv,
-            file_name=f"stroop_{st.session_state.participant_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-            mime="text/csv"
-        )
+        st.markdown(f"### 저장된 파일")
+        st.code(f"{st.session_state.participant_id}_short_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
 
     st.stop()
 
@@ -455,28 +573,14 @@ if st.session_state.task_completed:
 if st.session_state.trial_num < len(st.session_state.exp_trials):
     trial = st.session_state.exp_trials.iloc[st.session_state.trial_num]
 
-    # Rest break 체크 (36 trials마다 = trial_num 36, 72, 108)
-    if st.session_state.trial_num > 0 and st.session_state.trial_num % 36 == 0:
-        st.title("☕ 휴식 시간")
-        st.markdown(f"""
-        ### {st.session_state.trial_num}번 완료!
-
-        잠시 휴식하세요.
-
-        준비가 되면 계속 진행합니다.
-        """)
-
-        if st.button("계속하기", type="primary"):
-            st.rerun()
-
-        st.stop()
-
-    # ========== Phase 1 개선사항: vh 단위 자극 제시 + Fixation cross ==========
+    # Fixation cross + 자극 제시
     color_hex_map = {'red': '#FF0000', 'green': '#00FF00', 'blue': '#0000FF'}
     st.markdown(
         f'''
         <div class="fixation-cross">+</div>
-        <div class="stimulus-word stimulus-fade-in" style="color:{color_hex_map[trial["letterColor"]]};">{trial["text"]}</div>
+        <div class="stimulus-container">
+            <h1 style="color:{color_hex_map[trial["letterColor"]]}; font-size:80px; font-weight:bold; text-align:center;">{trial["text"]}</h1>
+        </div>
         ''',
         unsafe_allow_html=True
     )
@@ -485,45 +589,86 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
     if st.session_state.start_time is None:
         st.session_state.start_time = time.time()
 
+    st.markdown("<br>", unsafe_allow_html=True)
+
     # 키보드 이벤트 리스너 (F, J, Space)
     from streamlit.components.v1 import html
     html(f"""
     <script>
-    const tryNum = {st.session_state.trial_num};
+    (function() {{
+        const tryNum = {st.session_state.trial_num};
 
-    function handleKeyPress(event) {{
-        const key = event.key.toLowerCase();
-        let buttonSelector = null;
-
-        if (key === 'f') {{
-            buttonSelector = 'button[kind="primary"]:has-text("🔴 빨강")';
-        }} else if (key === 'j') {{
-            buttonSelector = 'button[kind="primary"]:has-text("🟢 초록")';
-        }} else if (key === ' ' || key === 'spacebar') {{
-            event.preventDefault();
-            buttonSelector = 'button[kind="primary"]:has-text("🔵 파랑")';
+        // Remove ALL previous listeners
+        if (window.stroopKeyHandler) {{
+            parent.document.removeEventListener('keydown', window.stroopKeyHandler);
         }}
 
-        if (buttonSelector) {{
-            const buttons = parent.document.querySelectorAll('button');
-            for (let btn of buttons) {{
-                if (btn.textContent.includes('🔴 빨강') && key === 'f') {{
-                    btn.click();
-                    break;
-                }} else if (btn.textContent.includes('🟢 초록') && key === 'j') {{
-                    btn.click();
-                    break;
-                }} else if (btn.textContent.includes('🔵 파랑') && (key === ' ' || key === 'spacebar')) {{
-                    btn.click();
-                    break;
-                }}
+        // Define new handler
+        window.stroopKeyHandler = function(event) {{
+            const code = event.code;  // Physical key code (KeyF, KeyJ, Space)
+
+            console.log('Key code:', code, 'Key:', event.key);
+
+            // Use event.code to detect physical keys (works with Korean/English keyboard)
+            if (code !== 'Space' && code !== 'KeyF' && code !== 'KeyJ') {{
+                return;
             }}
-        }}
-    }}
 
-    // Remove previous listener if exists
-    parent.document.removeEventListener('keydown', handleKeyPress);
-    parent.document.addEventListener('keydown', handleKeyPress);
+            event.preventDefault();
+            event.stopPropagation();
+
+            console.log('Handling key code:', code);
+
+            // Wait for DOM to be ready, then find buttons
+            setTimeout(function() {{
+                // Try multiple methods to find buttons
+                const allButtons = parent.document.querySelectorAll('button');
+                console.log('Total buttons found:', allButtons.length);
+
+                let redBtn = null, blueBtn = null, greenBtn = null;
+
+                allButtons.forEach((btn, idx) => {{
+                    const text = btn.textContent || btn.innerText;
+                    console.log('Button', idx, ':', text);
+
+                    if (text.includes('🔴') || text.includes('빨강')) {{
+                        redBtn = btn;
+                        console.log('Found RED button');
+                    }} else if (text.includes('🔵') || text.includes('파랑')) {{
+                        blueBtn = btn;
+                        console.log('Found BLUE button');
+                    }} else if (text.includes('🟢') || text.includes('초록')) {{
+                        greenBtn = btn;
+                        console.log('Found GREEN button');
+                    }}
+                }});
+
+                // Click the appropriate button based on physical key code
+                let targetBtn = null;
+                if (code === 'KeyF') {{
+                    targetBtn = redBtn;
+                    console.log('F key (KeyF) -> Red button:', !!redBtn);
+                }} else if (code === 'Space') {{
+                    targetBtn = blueBtn;
+                    console.log('Space key -> Blue button:', !!blueBtn);
+                }} else if (code === 'KeyJ') {{
+                    targetBtn = greenBtn;
+                    console.log('J key (KeyJ) -> Green button:', !!greenBtn);
+                }}
+
+                if (targetBtn) {{
+                    console.log('Clicking button!');
+                    targetBtn.click();
+                }} else {{
+                    console.log('No button to click!');
+                }}
+            }}, 100);
+        }};
+
+        // Add the new listener
+        parent.document.addEventListener('keydown', window.stroopKeyHandler);
+        console.log('Keyboard handler installed for trial', tryNum);
+    }})();
     </script>
     """, height=0)
 
