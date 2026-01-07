@@ -4,6 +4,15 @@ import time
 from pathlib import Path
 from datetime import datetime
 import random
+import io
+
+# Google Sheets 백업용 (optional)
+try:
+    import gspread
+    from google.oauth2.service_account import Credentials
+    GSPREAD_AVAILABLE = True
+except ImportError:
+    GSPREAD_AVAILABLE = False
 
 # 페이지 설정
 st.set_page_config(
@@ -300,23 +309,63 @@ def record_response(trial, response, is_practice=False):
 
 
 def save_data():
-    """데이터 저장 함수"""
+    """데이터 저장 함수 - DataFrame 반환"""
     if len(st.session_state.responses) > 0:
         # Practice + Experimental 데이터 합치기
         all_responses = st.session_state.practice_responses + st.session_state.responses
         df = pd.DataFrame(all_responses)
-
-        # data/responses 폴더 생성
-        output_dir = Path("data/responses")
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        # 파일명: participant_id_short_timestamp.csv
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = output_dir / f"{st.session_state.participant_id}_short_{timestamp}.csv"
-
-        df.to_csv(filename, index=False, encoding='utf-8-sig')
-        return filename
+        return df
     return None
+
+
+def backup_to_google_sheets(df):
+    """Google Sheets에 데이터 백업"""
+    if not GSPREAD_AVAILABLE:
+        return False, "gspread 라이브러리가 설치되지 않았습니다."
+
+    try:
+        # Streamlit secrets에서 credentials 가져오기
+        if "gcp_service_account" not in st.secrets:
+            return False, "Google 인증 정보가 설정되지 않았습니다."
+
+        credentials = Credentials.from_service_account_info(
+            st.secrets["gcp_service_account"],
+            scopes=[
+                "https://www.googleapis.com/auth/spreadsheets",
+                "https://www.googleapis.com/auth/drive"
+            ]
+        )
+
+        client = gspread.authorize(credentials)
+
+        # Spreadsheet ID from secrets
+        spreadsheet_id = st.secrets.get("spreadsheet_id", None)
+        if not spreadsheet_id:
+            return False, "Spreadsheet ID가 설정되지 않았습니다."
+
+        spreadsheet = client.open_by_key(spreadsheet_id)
+        worksheet = spreadsheet.sheet1
+
+        # 데이터 추가 (append)
+        existing_data = worksheet.get_all_values()
+
+        # 헤더가 없으면 추가
+        if len(existing_data) == 0:
+            worksheet.append_row(df.columns.tolist())
+
+        # 데이터 행 추가
+        for _, row in df.iterrows():
+            worksheet.append_row(row.tolist())
+
+        return True, "Google Sheets 백업 완료!"
+
+    except Exception as e:
+        return False, f"백업 실패: {str(e)}"
+
+
+def get_csv_download(df):
+    """CSV 다운로드용 데이터 생성"""
+    return df.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
 
 
 # ========== 메인 앱 로직 ==========
@@ -561,10 +610,56 @@ if st.session_state.task_completed:
     st.success("모든 시행을 완료했습니다. 감사합니다!")
 
     # 데이터 저장
-    saved_file = save_data()
-    if saved_file:
-        st.markdown(f"### 저장된 파일")
-        st.code(f"{st.session_state.participant_id}_short_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+    df = save_data()
+
+    if df is not None:
+        # 파일명 생성
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{st.session_state.participant_id}_stroop_{timestamp}.csv"
+
+        st.markdown("---")
+
+        # 1. CSV 다운로드 버튼
+        st.markdown("### 📥 결과 다운로드")
+        csv_data = get_csv_download(df)
+        st.download_button(
+            label="CSV 파일 다운로드",
+            data=csv_data,
+            file_name=filename,
+            mime="text/csv",
+            type="primary"
+        )
+
+        # 2. Google Sheets 백업 (자동)
+        st.markdown("### ☁️ 클라우드 백업")
+        if 'backup_attempted' not in st.session_state:
+            st.session_state.backup_attempted = False
+
+        if not st.session_state.backup_attempted:
+            with st.spinner("Google Sheets에 백업 중..."):
+                success, message = backup_to_google_sheets(df)
+                st.session_state.backup_attempted = True
+                st.session_state.backup_success = success
+                st.session_state.backup_message = message
+
+        if st.session_state.get('backup_success', False):
+            st.success(st.session_state.backup_message)
+        else:
+            st.warning(st.session_state.get('backup_message', '백업 설정이 필요합니다.'))
+            st.info("💡 CSV 파일을 다운로드하여 수동으로 저장해주세요.")
+
+        # 결과 요약
+        st.markdown("---")
+        st.markdown("### 📊 결과 요약")
+        exp_df = df[df['phase'] == 'experimental']
+        accuracy = exp_df['accuracy'].mean() * 100
+        mean_rt = exp_df['rt'].mean()
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("정확도", f"{accuracy:.1f}%")
+        with col2:
+            st.metric("평균 반응시간", f"{mean_rt:.3f}초")
 
     st.stop()
 
