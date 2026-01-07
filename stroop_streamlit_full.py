@@ -621,6 +621,8 @@ if st.session_state.task_completed:
         backup_success, backup_msg = backup_to_google_sheets(df)
         if backup_success:
             st.info("📊 데이터가 자동으로 백업되었습니다.")
+        else:
+            st.warning(f"⚠️ Google Sheets 백업 실패: {backup_msg}")
 
         # CSV 다운로드 버튼
         csv_data = df.to_csv(index=False, encoding='utf-8-sig')
