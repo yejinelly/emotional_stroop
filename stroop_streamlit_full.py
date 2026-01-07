@@ -278,7 +278,6 @@ def record_response(trial, response, is_practice=False):
     accuracy = 1 if response == correct_answer else 0
 
     response_data = {
-        'trial_num': (st.session_state.practice_trial_num if is_practice else st.session_state.trial_num) + 1,
         'participant_id': st.session_state.participant_id,
         'word': trial['text'],
         'condition': trial.get('condition', 'practice'),
