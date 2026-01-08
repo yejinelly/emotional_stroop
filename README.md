@@ -6,7 +6,7 @@
 
 **원본**: [mario-bermonti/emo_stroop_task](https://github.com/mario-bermonti/emo_stroop_task) (Spanish, PsychoPy)
 
-**한국어 단어 stimuli**: [KOR_wordset.md](https://github.com/yejinelly/emotional_stroop/blob/main/stimuli/KOR_wordset.md)
+**한국어 정서 단어**: [VA-KOR](https://github.com/smbslt3/VA-KOR) → 144개 선정 기준: [KOR_wordset.md](stimuli/KOR_wordset.md)
 
 ## 과제 설명
 
