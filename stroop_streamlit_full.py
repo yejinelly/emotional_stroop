@@ -257,14 +257,14 @@ def create_exp_trials(n_per_condition=10):
     trials = []
     # 조건별로 n개씩 랜덤 샘플링
     for condition in ['positive', 'negative', 'neutral']:
-        cond_words = df[df['condition'] == condition].sample(n=n_per_condition)
+        cond_words = df[df['category'] == condition].sample(n=n_per_condition)
         for _, row in cond_words.iterrows():
             color = random.choice(colors)
             trials.append({
                 'text': row['word'],
                 'letterColor': color,
                 'corrAns': color,
-                'condition': row['condition']
+                'condition': row['category']
             })
 
     # 전체 무선화
