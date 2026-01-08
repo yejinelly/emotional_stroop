@@ -15,7 +15,7 @@ except ImportError:
 
 # 페이지 설정
 st.set_page_config(
-    page_title="Emotional Word Stroop Task (Short)",
+    page_title="Emotional Word Stroop Task",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
@@ -241,28 +241,30 @@ def create_practice_trials():
     return trials.sample(frac=1).reset_index(drop=True)
 
 
-def create_short_exp_trials():
-    """Short experimental trials 생성 - 30 trials (10 words × 3 valences)"""
+def create_exp_trials(n_per_condition=10):
+    """Experimental trials 생성 - final_144_words.csv에서 조건별 n개씩 선택
 
-    # 각 정서가별로 10개 단어 선택 (word_translation_144.csv에서 처음 10개씩)
-    words = {
-        'positive': ['달', '걷기', '환호', '행운', '미소', '안녕', '친구', '사랑', '평온', '농담'],
-        'negative': ['방귀', '전이', '사기당한', '상처', '공포', '침뱉다', '투우', '부상', '위조', '목조르다'],
-        'neutral': ['회전', '모험적인', '모양', '부분적', '잠꾸러기', '부르다', '넓은', '목구멍', '참석', '굴뚝']
-    }
+    Args:
+        n_per_condition: 조건별 단어 수 (기본 10 = pilot, 최대 48 = full)
+    """
+
+    # final_144_words.csv에서 단어 로드
+    stimuli_path = Path("stimuli/final_144_words.csv")
+    df = pd.read_csv(stimuli_path)
 
     colors = ['red', 'blue', 'green']
 
     trials = []
-    for valence, word_list in words.items():
-        for word in word_list:
-            # 각 단어를 랜덤한 색상 하나로 표시
+    # 조건별로 n개씩 랜덤 샘플링
+    for condition in ['positive', 'negative', 'neutral']:
+        cond_words = df[df['condition'] == condition].sample(n=n_per_condition)
+        for _, row in cond_words.iterrows():
             color = random.choice(colors)
             trials.append({
-                'text': word,
+                'text': row['word'],
                 'letterColor': color,
                 'corrAns': color,
-                'condition': valence
+                'condition': row['condition']
             })
 
     # 전체 무선화
@@ -380,9 +382,9 @@ def save_data():
             output_dir = Path("data/responses")
             output_dir.mkdir(parents=True, exist_ok=True)
 
-            # 파일명: participant_id_short_timestamp.csv
+            # 파일명: participant_id_timestamp.csv
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = output_dir / f"{st.session_state.participant_id}_short_{timestamp}.csv"
+            filename = output_dir / f"{st.session_state.participant_id}_{timestamp}.csv"
 
             df.to_csv(filename, index=False, encoding='utf-8-sig')
             return filename, df
@@ -443,9 +445,9 @@ def backup_to_google_sheets(df):
 
 # 1. 참가자 정보 입력 화면
 if not st.session_state.task_started:
-    st.title("Emotional Word Stroop Task (Short Version)")
+    st.title("Emotional Word Stroop Task")
     st.markdown("### 참가자 정보")
-    st.caption("🚀 빠른 테스트용 버전 (30 trials)")
+    st.caption("🧪 Pilot: 30 trials (10 × 3 conditions)")
 
     st.info("⚠️ **시작 전**: 전체화면 모드로 전환해주세요  \n(Mac: Cmd+Ctrl+F, Windows: F11)")
 
@@ -669,7 +671,7 @@ if not st.session_state.instructions_exp_shown:
     if st.button("본 과제 시작"):
         st.session_state.instructions_exp_shown = True
         # Experimental trials 생성
-        st.session_state.exp_trials = create_short_exp_trials()
+        st.session_state.exp_trials = create_exp_trials()
         st.rerun()
 
     st.stop()
@@ -678,7 +680,7 @@ if not st.session_state.instructions_exp_shown:
 # 4. Task 완료 화면
 if st.session_state.task_completed:
     st.title("✅ 과제 완료!")
-    st.success("모든 시행을 완료했습니다. 감사합니다!")
+    st.markdown("모든 시행을 완료했습니다. 감사합니다!")
 
     # 데이터 저장 (한 번만 실행)
     if 'final_df' not in st.session_state:
@@ -706,7 +708,7 @@ if st.session_state.task_completed:
         st.download_button(
             label="📥 결과 CSV 다운로드",
             data=csv_data,
-            file_name=f"{st.session_state.participant_id}_short_result.csv",
+            file_name=f"{st.session_state.participant_id}_result.csv",
             mime="text/csv"
         )
 

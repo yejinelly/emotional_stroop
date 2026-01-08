@@ -40,6 +40,10 @@
 - 상기 4개 자료 통합 + 중복 처리 + 뜻풀이 추가
 - 정규화: -3~3
 - Lee et al. (2022) 연구에서 사용
+- 인용:
+  ```
+  Lee, J., Lim, J., Park, J., & Kim, C. (2022). Emotion Evaluator: Expanding the Affective Lexicon with Neural Network Model. In Proceedings of the Annual Meeting of the Cognitive Science Society (Vol. 44, No. 44).
+  ```
 
 ## Stroop 단어 선정 과정
 
@@ -69,17 +73,16 @@
 - **술어 16개**: 2-3글자 우선, 친숙성 순 상위 16개 선정
 
 #### Neutral (20 → 48)
-- **명사 32개**: 친숙성≥3.5 9개 전부 + 전체풀에서 2-3글자 |V|≈0 순 23개 보충
-  - 제외: 팍팍(부사), 공저자, 문헌
+- **명사 32개**: 친숙성≥3.5 9개 전부 + 전체풀에서 2-3글자 |V|≈0 순 23개 보충 (보고서, 차단기, 계산대, 볼펜, 도형, 버튼, 표지, 바둑, 왼발, 가구, 박스, 소품, 계산기, 창호지, 우산, 우유, 단추, 약재, 원고지, 벨트, 주전자, 구슬, 사전)
 - **술어 16개**: 친숙성≥3.5 11개 전부 + 전체풀에서 5개 보충 (바꾸다, 참다, 느끼다, 덤덤하다, 무관하다)
+
+#### Positive (48 → 48)
+- **명사 32개**: 친숙성≥3.5 18개 전부 + 전체풀에서 V 높은 순 2-3글자 14개 보충 (황금기, 행복감, 기쁨, 사랑, 최우수, 최고, 신기록, 참신성, 포용력, 우정, 상쾌, 감사, 웃음, 낙원)
+  - 제외: 화이팅, 아싸, 강추, 브라보(외래어/속어), 대만족, 대성공(중복)
+- **술어 16개**: 2-3글자 7개 + 4글자 9개 (편하다, 즐기다, 신나다, 정답다, 흥겹다, 멋있다, 귀엽다, 흥미롭다, 떳떳하다, 안정되다, 흐뭇하다, 감격하다, 경쾌하다, 후련하다, 감미롭다, 평온하다)
+  - 제외: 기쁘다, 상쾌하다, 감사하다(명사와 중복), 흥나다(흥겹다와 유사), 이뻐하다(예쁘다와 유사), 동감하다
 
 ### Valence 기준 (정규화 척도 -3~3)
 - **Negative**: V < -1.0
 - **Neutral**: -0.5 ≤ V ≤ 0.5
 - **Positive**: V > 1.0
-
-## 인용
-통합 자료 사용 시:
-```
-Lee, J., Lim, J., Park, J., & Kim, C. (2022). Emotion Evaluator: Expanding the Affective Lexicon with Neural Network Model. In Proceedings of the Annual Meeting of the Cognitive Science Society (Vol. 44, No. 44).
-```

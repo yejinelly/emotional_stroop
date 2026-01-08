@@ -5,9 +5,17 @@ from pathlib import Path
 from datetime import datetime
 import random
 
+# Google Sheets 백업용
+try:
+    import gspread
+    from google.oauth2.service_account import Credentials
+    GSPREAD_AVAILABLE = True
+except ImportError:
+    GSPREAD_AVAILABLE = False
+
 # 페이지 설정
 st.set_page_config(
-    page_title="Emotional Word Stroop Task (Short)",
+    page_title="Emotional Word Stroop Task",
     layout="centered",
     initial_sidebar_state="collapsed"
 )
@@ -233,28 +241,30 @@ def create_practice_trials():
     return trials.sample(frac=1).reset_index(drop=True)
 
 
-def create_short_exp_trials():
-    """Short experimental trials 생성 - 30 trials (10 words × 3 valences)"""
+def create_exp_trials(n_per_condition=10):
+    """Experimental trials 생성 - final_144_words.csv에서 조건별 n개씩 선택
 
-    # 각 정서가별로 10개 단어 선택 (word_translation_144.csv에서 처음 10개씩)
-    words = {
-        'positive': ['달', '걷기', '환호', '행운', '미소', '안녕', '친구', '사랑', '평온', '농담'],
-        'negative': ['방귀', '전이', '사기당한', '상처', '공포', '침뱉다', '투우', '부상', '위조', '목조르다'],
-        'neutral': ['회전', '모험적인', '모양', '부분적', '잠꾸러기', '부르다', '넓은', '목구멍', '참석', '굴뚝']
-    }
+    Args:
+        n_per_condition: 조건별 단어 수 (기본 10 = pilot, 최대 48 = full)
+    """
+
+    # final_144_words.csv에서 단어 로드
+    stimuli_path = Path("stimuli/final_144_words.csv")
+    df = pd.read_csv(stimuli_path)
 
     colors = ['red', 'blue', 'green']
 
     trials = []
-    for valence, word_list in words.items():
-        for word in word_list:
-            # 각 단어를 랜덤한 색상 하나로 표시
+    # 조건별로 n개씩 랜덤 샘플링
+    for condition in ['positive', 'negative', 'neutral']:
+        cond_words = df[df['condition'] == condition].sample(n=n_per_condition)
+        for _, row in cond_words.iterrows():
             color = random.choice(colors)
             trials.append({
-                'text': word,
+                'text': row['word'],
                 'letterColor': color,
                 'corrAns': color,
-                'condition': valence
+                'condition': row['condition']
             })
 
     # 전체 무선화
@@ -270,7 +280,6 @@ def record_response(trial, response, is_practice=False):
     accuracy = 1 if response == correct_answer else 0
 
     response_data = {
-        'trial_num': (st.session_state.practice_trial_num if is_practice else st.session_state.trial_num) + 1,
         'participant_id': st.session_state.participant_id,
         'word': trial['text'],
         'condition': trial.get('condition', 'practice'),
@@ -299,33 +308,146 @@ def record_response(trial, response, is_practice=False):
     st.rerun()
 
 
+def create_summary_row():
+    """참가자별 요약 데이터 생성 (한 행)"""
+    if len(st.session_state.responses) == 0:
+        return None
+
+    # Experimental 데이터만 사용
+    exp_df = pd.DataFrame(st.session_state.responses)
+
+    # 기본 정보
+    summary = {
+        'participant_id': st.session_state.participant_id,
+        'date': datetime.now().strftime("%Y-%m-%d"),
+        'timestamp': datetime.now().isoformat(),
+    }
+
+    # 조건별 요약 통계 (정답 trial만 사용하여 RT 계산)
+    for condition in ['positive', 'negative', 'neutral']:
+        cond_data = exp_df[exp_df['condition'] == condition]
+        correct_data = cond_data[cond_data['accuracy'] == 1]
+
+        summary[f'rt_{condition}_mean'] = round(correct_data['rt'].mean(), 4) if len(correct_data) > 0 else None
+        summary[f'rt_{condition}_sd'] = round(correct_data['rt'].std(), 4) if len(correct_data) > 1 else None
+        summary[f'acc_{condition}'] = round(cond_data['accuracy'].mean(), 4) if len(cond_data) > 0 else None
+        summary[f'n_{condition}'] = len(cond_data)
+
+    # 간섭 점수 (negative/positive RT - neutral RT)
+    if summary.get('rt_neutral_mean') and summary.get('rt_negative_mean'):
+        summary['interference_negative'] = round(summary['rt_negative_mean'] - summary['rt_neutral_mean'], 4)
+    if summary.get('rt_neutral_mean') and summary.get('rt_positive_mean'):
+        summary['interference_positive'] = round(summary['rt_positive_mean'] - summary['rt_neutral_mean'], 4)
+
+    # 전체 통계
+    correct_all = exp_df[exp_df['accuracy'] == 1]
+    summary['rt_overall_mean'] = round(correct_all['rt'].mean(), 4) if len(correct_all) > 0 else None
+    summary['acc_overall'] = round(exp_df['accuracy'].mean(), 4)
+    summary['n_total'] = len(exp_df)
+
+    # Practice 원시 데이터
+    practice_df = pd.DataFrame(st.session_state.practice_responses)
+    for i, (_, row) in enumerate(practice_df.iterrows(), 1):
+        summary[f'p{i}_word'] = row['word']
+        summary[f'p{i}_color'] = row['color']
+        summary[f'p{i}_resp'] = row['response']
+        summary[f'p{i}_acc'] = row['accuracy']
+        summary[f'p{i}_rt'] = round(row['rt'], 4)
+
+    # Practice 요약
+    if len(practice_df) > 0:
+        practice_correct = practice_df[practice_df['accuracy'] == 1]
+        summary['practice_acc'] = round(practice_df['accuracy'].mean(), 4)
+        summary['practice_rt_mean'] = round(practice_correct['rt'].mean(), 4) if len(practice_correct) > 0 else None
+
+    # Experimental 원시 데이터 (trial별로 컬럼에 추가)
+    for i, (_, row) in enumerate(exp_df.iterrows(), 1):
+        summary[f't{i}_word'] = row['word']
+        summary[f't{i}_cond'] = row['condition'][:3]  # pos/neg/neu
+        summary[f't{i}_color'] = row['color']
+        summary[f't{i}_resp'] = row['response']
+        summary[f't{i}_acc'] = row['accuracy']
+        summary[f't{i}_rt'] = round(row['rt'], 4)
+
+    return pd.DataFrame([summary])
+
+
 def save_data():
     """데이터 저장 함수"""
     if len(st.session_state.responses) > 0:
-        # Practice + Experimental 데이터 합치기
-        all_responses = st.session_state.practice_responses + st.session_state.responses
-        df = pd.DataFrame(all_responses)
+        df = create_summary_row()
 
-        # data/responses 폴더 생성
-        output_dir = Path("data/responses")
-        output_dir.mkdir(parents=True, exist_ok=True)
+        if df is not None:
+            # data/responses 폴더 생성
+            output_dir = Path("data/responses")
+            output_dir.mkdir(parents=True, exist_ok=True)
 
-        # 파일명: participant_id_short_timestamp.csv
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = output_dir / f"{st.session_state.participant_id}_short_{timestamp}.csv"
+            # 파일명: participant_id_timestamp.csv
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = output_dir / f"{st.session_state.participant_id}_{timestamp}.csv"
 
-        df.to_csv(filename, index=False, encoding='utf-8-sig')
-        return filename
-    return None
+            df.to_csv(filename, index=False, encoding='utf-8-sig')
+            return filename, df
+    return None, None
+
+
+def backup_to_google_sheets(df):
+    """Google Sheets에 데이터 백업"""
+    if not GSPREAD_AVAILABLE:
+        return False, "gspread 라이브러리가 설치되지 않았습니다."
+
+    try:
+        # Streamlit secrets에서 credentials 가져오기
+        credentials_dict = st.secrets["gcp_service_account"]
+
+        scopes = [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive'
+        ]
+
+        credentials = Credentials.from_service_account_info(
+            dict(credentials_dict),
+            scopes=scopes
+        )
+
+        gc = gspread.authorize(credentials)
+
+        # Spreadsheet ID (emotional stroop responses)
+        SPREADSHEET_ID = "1qz17jEAWlJcP-erMPM99qRE9SPa2m7GqrYzzBnj25NE"
+        spreadsheet = gc.open_by_key(SPREADSHEET_ID)
+
+        # 첫 번째 시트 사용
+        worksheet = spreadsheet.sheet1
+
+        # 기존 데이터가 있는지 확인
+        existing_data = worksheet.get_all_values()
+
+        # 헤더 확인 및 추가
+        expected_headers = df.columns.tolist()
+        if len(existing_data) == 0 or existing_data[0] != expected_headers:
+            if len(existing_data) == 0:
+                worksheet.append_row(expected_headers)
+            else:
+                # 첫 행이 헤더가 아니면 맨 위에 헤더 삽입
+                worksheet.insert_row(expected_headers, 1)
+
+        # 데이터 추가
+        for _, row in df.iterrows():
+            worksheet.append_row(row.tolist())
+
+        return True, "Google Sheets 백업 완료"
+
+    except Exception as e:
+        return False, f"백업 실패: {str(e)}"
 
 
 # ========== 메인 앱 로직 ==========
 
 # 1. 참가자 정보 입력 화면
 if not st.session_state.task_started:
-    st.title("Emotional Word Stroop Task (Short Version)")
+    st.title("Emotional Word Stroop Task")
     st.markdown("### 참가자 정보")
-    st.caption("🚀 빠른 테스트용 버전 (30 trials)")
+    st.caption("🧪 Pilot: 30 trials (10 × 3 conditions)")
 
     st.info("⚠️ **시작 전**: 전체화면 모드로 전환해주세요  \n(Mac: Cmd+Ctrl+F, Windows: F11)")
 
@@ -549,7 +671,7 @@ if not st.session_state.instructions_exp_shown:
     if st.button("본 과제 시작"):
         st.session_state.instructions_exp_shown = True
         # Experimental trials 생성
-        st.session_state.exp_trials = create_short_exp_trials()
+        st.session_state.exp_trials = create_exp_trials()
         st.rerun()
 
     st.stop()
@@ -558,13 +680,37 @@ if not st.session_state.instructions_exp_shown:
 # 4. Task 완료 화면
 if st.session_state.task_completed:
     st.title("✅ 과제 완료!")
-    st.success("모든 시행을 완료했습니다. 감사합니다!")
+    st.markdown("모든 시행을 완료했습니다. 감사합니다!")
 
-    # 데이터 저장
-    saved_file = save_data()
-    if saved_file:
-        st.markdown(f"### 저장된 파일")
-        st.code(f"{st.session_state.participant_id}_short_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
+    # 데이터 저장 (한 번만 실행)
+    if 'final_df' not in st.session_state:
+        saved_file, df = save_data()
+        if df is not None:
+            st.session_state.final_df = df
+            # Google Sheets 백업 (한 번만)
+            backup_success, backup_msg = backup_to_google_sheets(df)
+            st.session_state.backup_result = (backup_success, backup_msg)
+
+    # 저장된 결과 표시
+    if 'final_df' in st.session_state:
+        df = st.session_state.final_df
+
+        # 백업 결과 표시
+        if 'backup_result' in st.session_state:
+            backup_success, backup_msg = st.session_state.backup_result
+            if backup_success:
+                st.info("📊 데이터가 자동으로 백업되었습니다.")
+            else:
+                st.warning(f"⚠️ Google Sheets 백업 실패: {backup_msg}")
+
+        # CSV 다운로드 버튼 (Excel 호환 인코딩)
+        csv_data = df.to_csv(index=False).encode('utf-8-sig')
+        st.download_button(
+            label="📥 결과 CSV 다운로드",
+            data=csv_data,
+            file_name=f"{st.session_state.participant_id}_result.csv",
+            mime="text/csv"
+        )
 
     st.stop()
 
