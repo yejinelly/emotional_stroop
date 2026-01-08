@@ -28,3 +28,18 @@ Thumbs.db
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Local only (not needed for Streamlit)
+docs/
+old_versions/
+.devcontainer/
+stimuli/VA_KOR_2005_MIN.csv
+stimuli/VA_KOR_annot.csv
+stimuli/colors.csv
+stimuli/exp_trials_korean.csv
+stimuli/practice_trials_korean.csv
+stimuli/translation_issues.md
+stimuli/word_candidates.csv
+stimuli/word_translation_144.csv
+stimuli/word_translation_144_review.csv
+stroop_streamlit_short.py
