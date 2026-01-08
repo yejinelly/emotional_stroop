@@ -1,7 +1,5 @@
 # Emotional Word Stroop Task
 
-한국어 Emotional Word Stroop Task 웹 구현
-
 **[TEST]** https://emo-stroop-101.streamlit.app/
 
 **[RESULT]** https://docs.google.com/spreadsheets/d/1qz17jEAWlJcP-erMPM99qRE9SPa2m7GqrYzzBnj25NE/edit
