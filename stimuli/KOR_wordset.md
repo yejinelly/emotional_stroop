@@ -26,7 +26,7 @@
 - 홍영지, 남예은, & 이윤형. (2016). 인지과학, 27(3), 377-406.
 - [KCI](https://www.kci.go.kr/kciportal/landing/article.kci?arti_id=ART002149809) | [Korea Science](https://koreascience.kr/article/JAKO201630932329075.page)
 - 파일: `VA_KOR_2016_LEE.csv`
-- **Emotional Stroop task 검증 완료**
+- **Emotional Stroop task 검증 완료** (논문 내 연구2에서 42명 대상 검증)
 
 ### 4. 김청택 (2022)
 **Emotion Evaluator: Expanding the Affective Lexicon with Neural Network Model**
