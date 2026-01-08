@@ -2,9 +2,13 @@
 
 한국어 Emotional Word Stroop Task 웹 구현
 
+**[TEST]** https://emo-stroop-101.streamlit.app/
+
+**[RESULT]** https://docs.google.com/spreadsheets/d/1qz17jEAWlJcP-erMPM99qRE9SPa2m7GqrYzzBnj25NE/edit
+
 **원본**: [mario-bermonti/emo_stroop_task](https://github.com/mario-bermonti/emo_stroop_task) (Spanish, PsychoPy)
 
-*한국어 단어 stimuli 추후 추가 예정*
+**한국어 단어 stimuli**: [KOR_wordset.md](https://github.com/yejinelly/emotional_stroop/blob/main/stimuli/KOR_wordset.md)
 
 ## 과제 설명
 
