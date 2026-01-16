@@ -42,4 +42,6 @@ stimuli/translation_issues.md
 stimuli/word_candidates.csv
 stimuli/word_translation_144.csv
 stimuli/word_translation_144_review.csv
+stimuli/KOR_wordset.md
+stimuli/final_144_words_old.csv
 stroop_streamlit_short.py
