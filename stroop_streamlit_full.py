@@ -13,6 +13,13 @@ try:
 except ImportError:
     GSPREAD_AVAILABLE = False
 
+# 클라이언트 사이드 RT 측정용
+try:
+    from streamlit_javascript import st_javascript
+    ST_JAVASCRIPT_AVAILABLE = True
+except ImportError:
+    ST_JAVASCRIPT_AVAILABLE = False
+
 # 페이지 설정
 st.set_page_config(
     page_title="Emotional Word Stroop Task",
@@ -225,6 +232,33 @@ if 'task_completed' not in st.session_state:
     st.session_state.task_completed = False
 if 'last_response_correct' not in st.session_state:
     st.session_state.last_response_correct = None
+if 'pending_client_rt' not in st.session_state:
+    st.session_state.pending_client_rt = None
+
+
+def read_client_rt():
+    """localStorage에서 클라이언트 사이드 RT를 읽고 클리어"""
+    if not ST_JAVASCRIPT_AVAILABLE:
+        return None
+
+    try:
+        # localStorage에서 RT 읽고 바로 삭제 (atomic operation)
+        rt_str = st_javascript("""
+            (function() {
+                const rt = localStorage.getItem('stroopClientRT');
+                if (rt !== null) {
+                    localStorage.removeItem('stroopClientRT');
+                    return rt;
+                }
+                return null;
+            })()
+        """)
+
+        if rt_str is not None and rt_str != "null" and rt_str != 0:
+            return float(rt_str)
+    except Exception:
+        pass
+    return None
 
 
 def create_practice_trials():
@@ -272,9 +306,22 @@ def create_exp_trials(n_per_condition=10):
     return pd.DataFrame(trials)
 
 
-def record_response(trial, response, is_practice=False):
-    """반응 기록 함수"""
-    rt = time.time() - st.session_state.start_time
+def record_response(trial, response, is_practice=False, client_rt=None):
+    """반응 기록 함수
+
+    Args:
+        trial: 현재 trial 정보
+        response: 참가자 반응 ('red', 'blue', 'green')
+        is_practice: 연습 시행 여부
+        client_rt: 클라이언트 사이드에서 측정된 RT (ms) - 우선 사용
+    """
+    # RT 결정: 클라이언트 RT 우선, 없으면 서버 RT 사용
+    if client_rt is not None and client_rt > 0:
+        rt = client_rt / 1000  # ms -> seconds
+        rt_source = 'client'
+    else:
+        rt = time.time() - st.session_state.start_time
+        rt_source = 'server'
 
     correct_answer = trial.get('corrAns', trial.get('letterColor'))
     accuracy = 1 if response == correct_answer else 0
@@ -287,6 +334,7 @@ def record_response(trial, response, is_practice=False):
         'response': response,
         'accuracy': accuracy,
         'rt': rt,
+        'rt_source': rt_source,  # 'client' or 'server'
         'timestamp': datetime.now().isoformat(),
         'phase': 'practice' if is_practice else 'experimental'
     }
@@ -495,6 +543,11 @@ if not st.session_state.practice_completed:
     if st.session_state.practice_trial_num < len(st.session_state.practice_trials):
         trial = st.session_state.practice_trials.iloc[st.session_state.practice_trial_num]
 
+        # 클라이언트 사이드 RT 읽기 (이전 시행에서 저장된 값)
+        client_rt = read_client_rt()
+        if client_rt is not None:
+            st.session_state.pending_client_rt = client_rt
+
         # 피드백 표시 (이전 trial) - 박스 안에
         if st.session_state.last_response_correct is not None:
             if st.session_state.last_response_correct == 1:
@@ -545,12 +598,17 @@ if not st.session_state.practice_completed:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # 키보드 이벤트 리스너 (F, J, Space)
+        # 키보드 이벤트 리스너 (F, J, Space) - 클라이언트 사이드 RT 측정
         from streamlit.components.v1 import html
         html(f"""
         <script>
         (function() {{
             const tryNum = {st.session_state.practice_trial_num};
+
+            // 자극 표시 시점 기록 (CSS 애니메이션 0.5초 후 = 실제 자극 표시 시점)
+            const FIXATION_DURATION = 500;  // ms
+            window.stimulusShownTime = performance.now() + FIXATION_DURATION;
+            console.log('Stimulus will be shown at:', window.stimulusShownTime);
 
             // Remove ALL previous listeners
             if (window.stroopKeyHandler) {{
@@ -561,8 +619,6 @@ if not st.session_state.practice_completed:
             window.stroopKeyHandler = function(event) {{
                 const code = event.code;  // Physical key code (KeyF, KeyJ, Space)
 
-                console.log('Key code:', code, 'Key:', event.key);
-
                 // Use event.code to detect physical keys (works with Korean/English keyboard)
                 if (code !== 'Space' && code !== 'KeyF' && code !== 'KeyJ') {{
                     return;
@@ -571,52 +627,34 @@ if not st.session_state.practice_completed:
                 event.preventDefault();
                 event.stopPropagation();
 
-                console.log('Handling key code:', code);
+                // 클라이언트 사이드 RT 계산
+                const keyPressTime = performance.now();
+                const clientRT = Math.max(0, keyPressTime - window.stimulusShownTime);
+                console.log('Client RT:', clientRT.toFixed(2), 'ms');
 
-                // Wait for DOM to be ready, then find buttons
-                setTimeout(function() {{
-                    // Try multiple methods to find buttons
-                    const allButtons = parent.document.querySelectorAll('button');
-                    console.log('Total buttons found:', allButtons.length);
+                // RT를 localStorage에 저장 (Python에서 읽기 위함)
+                localStorage.setItem('stroopClientRT', clientRT.toString());
 
-                    let redBtn = null, blueBtn = null, greenBtn = null;
+                // Find and click buttons
+                const allButtons = parent.document.querySelectorAll('button');
+                let redBtn = null, blueBtn = null, greenBtn = null;
 
-                    allButtons.forEach((btn, idx) => {{
-                        const text = btn.textContent || btn.innerText;
-                        console.log('Button', idx, ':', text);
+                allButtons.forEach((btn) => {{
+                    const text = btn.textContent || btn.innerText;
+                    if (text.includes('🔴') || text.includes('빨강')) redBtn = btn;
+                    else if (text.includes('🔵') || text.includes('파랑')) blueBtn = btn;
+                    else if (text.includes('🟢') || text.includes('초록')) greenBtn = btn;
+                }});
 
-                        if (text.includes('🔴') || text.includes('빨강')) {{
-                            redBtn = btn;
-                            console.log('Found RED button');
-                        }} else if (text.includes('🔵') || text.includes('파랑')) {{
-                            blueBtn = btn;
-                            console.log('Found BLUE button');
-                        }} else if (text.includes('🟢') || text.includes('초록')) {{
-                            greenBtn = btn;
-                            console.log('Found GREEN button');
-                        }}
-                    }});
+                // Click the appropriate button based on physical key code
+                let targetBtn = null;
+                if (code === 'KeyF') targetBtn = redBtn;
+                else if (code === 'Space') targetBtn = blueBtn;
+                else if (code === 'KeyJ') targetBtn = greenBtn;
 
-                    // Click the appropriate button based on physical key code
-                    let targetBtn = null;
-                    if (code === 'KeyF') {{
-                        targetBtn = redBtn;
-                        console.log('F key (KeyF) -> Red button:', !!redBtn);
-                    }} else if (code === 'Space') {{
-                        targetBtn = blueBtn;
-                        console.log('Space key -> Blue button:', !!blueBtn);
-                    }} else if (code === 'KeyJ') {{
-                        targetBtn = greenBtn;
-                        console.log('J key (KeyJ) -> Green button:', !!greenBtn);
-                    }}
-
-                    if (targetBtn) {{
-                        console.log('Clicking button!');
-                        targetBtn.click();
-                    }} else {{
-                        console.log('No button to click!');
-                    }}
-                }}, 100);
+                if (targetBtn) {{
+                    targetBtn.click();
+                }}
             }};
 
             // Add the new listener
@@ -631,15 +669,21 @@ if not st.session_state.practice_completed:
 
         with col1:
             if st.button("🔴 빨강", key=f"practice_red_{st.session_state.practice_trial_num}", use_container_width=True, type="primary"):
-                record_response(trial, "red", is_practice=True)
+                client_rt = st.session_state.pending_client_rt
+                st.session_state.pending_client_rt = None
+                record_response(trial, "red", is_practice=True, client_rt=client_rt)
 
         with col2:
             if st.button("🔵 파랑", key=f"practice_blue_{st.session_state.practice_trial_num}", use_container_width=True, type="primary"):
-                record_response(trial, "blue", is_practice=True)
+                client_rt = st.session_state.pending_client_rt
+                st.session_state.pending_client_rt = None
+                record_response(trial, "blue", is_practice=True, client_rt=client_rt)
 
         with col3:
             if st.button("🟢 초록", key=f"practice_green_{st.session_state.practice_trial_num}", use_container_width=True, type="primary"):
-                record_response(trial, "green", is_practice=True)
+                client_rt = st.session_state.pending_client_rt
+                st.session_state.pending_client_rt = None
+                record_response(trial, "green", is_practice=True, client_rt=client_rt)
 
     else:
         # Practice 완료
@@ -719,6 +763,11 @@ if st.session_state.task_completed:
 if st.session_state.trial_num < len(st.session_state.exp_trials):
     trial = st.session_state.exp_trials.iloc[st.session_state.trial_num]
 
+    # 클라이언트 사이드 RT 읽기 (이전 시행에서 저장된 값)
+    client_rt = read_client_rt()
+    if client_rt is not None:
+        st.session_state.pending_client_rt = client_rt
+
     # Fixation cross + 자극 제시
     color_hex_map = {'red': '#FF0000', 'green': '#00FF00', 'blue': '#0000FF'}
     st.markdown(
@@ -737,12 +786,17 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 키보드 이벤트 리스너 (F, J, Space)
+    # 키보드 이벤트 리스너 (F, J, Space) - 클라이언트 사이드 RT 측정
     from streamlit.components.v1 import html
     html(f"""
     <script>
     (function() {{
         const tryNum = {st.session_state.trial_num};
+
+        // 자극 표시 시점 기록 (CSS 애니메이션 0.5초 후 = 실제 자극 표시 시점)
+        const FIXATION_DURATION = 500;  // ms
+        window.stimulusShownTime = performance.now() + FIXATION_DURATION;
+        console.log('Stimulus will be shown at:', window.stimulusShownTime);
 
         // Remove ALL previous listeners
         if (window.stroopKeyHandler) {{
@@ -753,8 +807,6 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
         window.stroopKeyHandler = function(event) {{
             const code = event.code;  // Physical key code (KeyF, KeyJ, Space)
 
-            console.log('Key code:', code, 'Key:', event.key);
-
             // Use event.code to detect physical keys (works with Korean/English keyboard)
             if (code !== 'Space' && code !== 'KeyF' && code !== 'KeyJ') {{
                 return;
@@ -763,52 +815,34 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
             event.preventDefault();
             event.stopPropagation();
 
-            console.log('Handling key code:', code);
+            // 클라이언트 사이드 RT 계산
+            const keyPressTime = performance.now();
+            const clientRT = Math.max(0, keyPressTime - window.stimulusShownTime);
+            console.log('Client RT:', clientRT.toFixed(2), 'ms');
 
-            // Wait for DOM to be ready, then find buttons
-            setTimeout(function() {{
-                // Try multiple methods to find buttons
-                const allButtons = parent.document.querySelectorAll('button');
-                console.log('Total buttons found:', allButtons.length);
+            // RT를 localStorage에 저장 (Python에서 읽기 위함)
+            localStorage.setItem('stroopClientRT', clientRT.toString());
 
-                let redBtn = null, blueBtn = null, greenBtn = null;
+            // Find and click buttons
+            const allButtons = parent.document.querySelectorAll('button');
+            let redBtn = null, blueBtn = null, greenBtn = null;
 
-                allButtons.forEach((btn, idx) => {{
-                    const text = btn.textContent || btn.innerText;
-                    console.log('Button', idx, ':', text);
+            allButtons.forEach((btn) => {{
+                const text = btn.textContent || btn.innerText;
+                if (text.includes('🔴') || text.includes('빨강')) redBtn = btn;
+                else if (text.includes('🔵') || text.includes('파랑')) blueBtn = btn;
+                else if (text.includes('🟢') || text.includes('초록')) greenBtn = btn;
+            }});
 
-                    if (text.includes('🔴') || text.includes('빨강')) {{
-                        redBtn = btn;
-                        console.log('Found RED button');
-                    }} else if (text.includes('🔵') || text.includes('파랑')) {{
-                        blueBtn = btn;
-                        console.log('Found BLUE button');
-                    }} else if (text.includes('🟢') || text.includes('초록')) {{
-                        greenBtn = btn;
-                        console.log('Found GREEN button');
-                    }}
-                }});
+            // Click the appropriate button based on physical key code
+            let targetBtn = null;
+            if (code === 'KeyF') targetBtn = redBtn;
+            else if (code === 'Space') targetBtn = blueBtn;
+            else if (code === 'KeyJ') targetBtn = greenBtn;
 
-                // Click the appropriate button based on physical key code
-                let targetBtn = null;
-                if (code === 'KeyF') {{
-                    targetBtn = redBtn;
-                    console.log('F key (KeyF) -> Red button:', !!redBtn);
-                }} else if (code === 'Space') {{
-                    targetBtn = blueBtn;
-                    console.log('Space key -> Blue button:', !!blueBtn);
-                }} else if (code === 'KeyJ') {{
-                    targetBtn = greenBtn;
-                    console.log('J key (KeyJ) -> Green button:', !!greenBtn);
-                }}
-
-                if (targetBtn) {{
-                    console.log('Clicking button!');
-                    targetBtn.click();
-                }} else {{
-                    console.log('No button to click!');
-                }}
-            }}, 100);
+            if (targetBtn) {{
+                targetBtn.click();
+            }}
         }};
 
         // Add the new listener
@@ -823,15 +857,21 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
 
     with col1:
         if st.button("🔴 빨강", key=f"red_{st.session_state.trial_num}", use_container_width=True, type="primary"):
-            record_response(trial, "red")
+            client_rt = st.session_state.pending_client_rt
+            st.session_state.pending_client_rt = None
+            record_response(trial, "red", client_rt=client_rt)
 
     with col2:
         if st.button("🔵 파랑", key=f"blue_{st.session_state.trial_num}", use_container_width=True, type="primary"):
-            record_response(trial, "blue")
+            client_rt = st.session_state.pending_client_rt
+            st.session_state.pending_client_rt = None
+            record_response(trial, "blue", client_rt=client_rt)
 
     with col3:
         if st.button("🟢 초록", key=f"green_{st.session_state.trial_num}", use_container_width=True, type="primary"):
-            record_response(trial, "green")
+            client_rt = st.session_state.pending_client_rt
+            st.session_state.pending_client_rt = None
+            record_response(trial, "green", client_rt=client_rt)
 
 else:
     st.session_state.task_completed = True

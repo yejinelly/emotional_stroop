@@ -1,5 +1,7 @@
 # 한국어 정서 단어 자료 (Arousal 통제 버전)
 
+**최종 단어 목록:** [final_144_words.csv](final_144_words.csv)
+
 [VA-KOR GitHub](https://github.com/smbslt3/VA-KOR)
 
 ## Stroop 단어 선정 과정
@@ -86,3 +88,4 @@
 - 상기 4개 자료 통합 + 중복 처리 + 뜻풀이 추가
 - 정규화: -3~3
 - Lee et al. (2022) 연구에서 사용
+- 파일: `VA_KOR_annot.csv`
