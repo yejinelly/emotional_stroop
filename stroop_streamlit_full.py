@@ -725,13 +725,13 @@ if not st.session_state.practice_completed:
                 st.markdown(f'''
                 <div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
                             background-color: {feedback_bg};
-                            border: 3px solid {feedback_color};
+                            border: 2px solid {feedback_color};
                             color: {feedback_color};
-                            padding: 20px 50px;
-                            border-radius: 12px;
-                            font-size: 36px;
+                            padding: 15px 30px;
+                            border-radius: 8px;
+                            font-size: 24px;
                             font-weight: bold;
-                            z-index: 9999;">
+                            z-index: 999;">
                     {feedback_text}
                 </div>
                 ''', unsafe_allow_html=True)
