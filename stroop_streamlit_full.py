@@ -1165,6 +1165,25 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
         </div>
         ''', unsafe_allow_html=True)
 
+        # 버튼 - 화면 중앙 하단에 고정 (지시사항 버튼과 동일 위치)
+        st.markdown('''
+        <style>
+        div[data-testid="stButton"]:has(button) {
+            position: fixed !important;
+            bottom: 20% !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            z-index: 1000 !important;
+            width: auto !important;
+            max-width: 200px !important;
+        }
+        div[data-testid="stButton"]:has(button) button {
+            width: auto !important;
+            padding: 10px 40px !important;
+        }
+        </style>
+        ''', unsafe_allow_html=True)
+
         if st.button("다음 블록 시작", key="continue_block", type="primary"):
             st.session_state.showing_break = False
             st.rerun()
