@@ -979,9 +979,43 @@ if not st.session_state.practice_completed:
                 record_response(trial, "timeout", is_practice=True, is_timeout=True)
 
     else:
+        # 마지막 trial 피드백 표시 (has_feedback이 True일 때)
+        has_feedback = st.session_state.last_response_correct is not None or st.session_state.last_was_timeout
+
+        if has_feedback:
+            # 마지막 피드백 표시
+            if st.session_state.last_was_timeout:
+                feedback_style_class = "practice-feedback-timeout"
+                feedback_text = "너무 느립니다"
+            elif st.session_state.last_response_correct == 1:
+                feedback_style_class = "practice-feedback-correct"
+                feedback_text = "정답"
+            else:
+                feedback_style_class = "practice-feedback-incorrect"
+                feedback_text = "오답"
+
+            # 마지막 피드백용 고유 애니메이션
+            st.markdown(
+                f'''
+                <style>
+                @keyframes feedbackShowLast {{
+                    0% {{ opacity: 1; }}
+                    80% {{ opacity: 1; }}
+                    100% {{ opacity: 0; }}
+                }}
+                </style>
+                <div class="practice-feedback {feedback_style_class}" style="animation: feedbackShowLast 1s ease-in-out forwards;">{feedback_text}</div>
+                ''',
+                unsafe_allow_html=True
+            )
+
+            # 1초 후 practice 완료로 전환
+            time.sleep(1.0)
+
         # Practice 완료
         st.session_state.practice_completed = True
         st.session_state.last_response_correct = None  # 초기화
+        st.session_state.last_was_timeout = False
         st.rerun()
 
     st.stop()
