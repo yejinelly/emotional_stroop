@@ -626,16 +626,16 @@ if not st.session_state.practice_completed:
         </div>
         ''', unsafe_allow_html=True)
 
-        # 버튼 표시 (바로 표시)
-        col1, col2, col3 = st.columns([1, 1, 1])
-        with col2:
-            if st.button(page["button"], key=f"instruction_btn_{current_page}", type="primary", use_container_width=True):
-                if is_last_page:
-                    st.session_state.practice_instructions_shown = True
-                    st.session_state.instruction_page = 0  # 리셋
-                else:
-                    st.session_state.instruction_page += 1
-                st.rerun()
+        # 버튼 표시 (중앙 정렬)
+        st.markdown('<div style="display: flex; justify-content: center; margin-top: 30px;">', unsafe_allow_html=True)
+        if st.button(page["button"], key=f"instruction_btn_{current_page}", type="primary"):
+            if is_last_page:
+                st.session_state.practice_instructions_shown = True
+                st.session_state.instruction_page = 0  # 리셋
+            else:
+                st.session_state.instruction_page += 1
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
         st.stop()
 
