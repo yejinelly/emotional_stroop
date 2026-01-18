@@ -1,12 +1,10 @@
 # Emotional Word Stroop Task
 
-**[TEST]** https://emo-stroop-101.streamlit.app/
+**[TEST - Full]** https://emo-stroop-101.streamlit.app/ (144 trials, 4 blocks)
+
+**[TEST - Pilot]** https://emo-stroop-101.streamlit.app/?mode=pilot (30 trials)
 
 **[RESULT]** https://docs.google.com/spreadsheets/d/1qz17jEAWlJcP-erMPM99qRE9SPa2m7GqrYzzBnj25NE/edit
-
-**원본**: [mario-bermonti/emo_stroop_task](https://github.com/mario-bermonti/emo_stroop_task) (Spanish, PsychoPy)
-
-**한국어 정서 단어**: [VA-KOR](https://github.com/smbslt3/VA-KOR) → 144개 선정 기준: [KOR_wordset_ARcontrolled.md](stimuli/KOR_wordset_ARcontrolled.md)
 
 ## 과제 설명
 
@@ -14,12 +12,22 @@
 
 - **과제**: 단어 의미를 무시하고 글자 색깔만 판단
 - **측정**: 반응시간 (RT), 정확도
+- **반응 키**: F (빨강), J (초록)
 
 ## 실험 구성
 
-- **Practice**: 24 trials
+- **Practice**: 24 trials (피드백 제공)
 - **Experimental**: 144 trials (Positive 48 + Negative 48 + Neutral 48)
 - **Rest breaks**: 4블록 (36 trials × 4), 블록 사이 휴식 3회
+
+## Timing 파라미터
+
+| 파라미터 | 값 | 설명 |
+|---------|-----|------|
+| Fixation | 0.5초 | + 표시 |
+| Max Response Time | 3초 | 초과 시 timeout 처리 |
+| ITI | 0.8~1.2초 | Jittered inter-trial interval |
+| Timeout 피드백 | "너무 느립니다" | 응답 제한 시간 초과 시 |
 
 ## 수집 데이터
 
@@ -51,4 +59,10 @@
 |------|----------------|-------------------|
 | 언어 | 스페인어 | 한국어 |
 | 플랫폼 | PsychoPy 3 (로컬) | Streamlit (웹) |
-| RT 정확도 | ~1ms | ~50-100ms |
+| RT 정확도 | ~1ms | ~5-10ms (client-side) |
+
+## 참고 자료
+
+- **원본**: [mario-bermonti/emo_stroop_task](https://github.com/mario-bermonti/emo_stroop_task) (Spanish, PsychoPy)
+- **한국어 정서 단어**: [VA-KOR](https://github.com/smbslt3/VA-KOR) → 144개 선정 기준: [KOR_wordset_ARcontrolled.md](stimuli/KOR_wordset_ARcontrolled.md)
+- **Timing 파라미터 참고**: [TaskBeacon/Stroop](https://github.com/TaskBeacon/Stroop) (PsychoPy)

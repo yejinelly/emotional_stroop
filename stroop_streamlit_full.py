@@ -5,6 +5,22 @@ from pathlib import Path
 from datetime import datetime
 import random
 
+# ========== Timing 상수 ==========
+MAX_RESPONSE_TIME = 3.0  # 최대 응답 시간 (초)
+ITI_MIN = 0.8  # ITI 최소 (초)
+ITI_MAX = 1.2  # ITI 최대 (초)
+FIXATION_DURATION = 0.5  # Fixation 지속 시간 (초)
+
+# ========== Block 구조 ==========
+TRIALS_PER_BLOCK = 36  # 블록당 시행 수
+NUM_BLOCKS = 4  # 총 블록 수
+
+# ========== 실험 모드 설정 ==========
+# URL 파라미터로 모드 전환: ?mode=pilot (30 trials) 또는 ?mode=full (144 trials)
+# 예: https://emo-stroop-101.streamlit.app/?mode=pilot
+N_PER_CONDITION_PILOT = 10  # pilot: 조건당 10개 = 30 trials
+N_PER_CONDITION_FULL = 48   # full: 조건당 48개 = 144 trials
+
 # Google Sheets 백업용
 try:
     import gspread
@@ -212,6 +228,8 @@ if 'instructions_exp_shown' not in st.session_state:
     st.session_state.instructions_exp_shown = False
 if 'practice_instructions_shown' not in st.session_state:
     st.session_state.practice_instructions_shown = False
+if 'instruction_page' not in st.session_state:
+    st.session_state.instruction_page = 0
 if 'trial_num' not in st.session_state:
     st.session_state.trial_num = 0
 if 'practice_trial_num' not in st.session_state:
@@ -234,6 +252,29 @@ if 'last_response_correct' not in st.session_state:
     st.session_state.last_response_correct = None
 if 'pending_client_rt' not in st.session_state:
     st.session_state.pending_client_rt = None
+if 'showing_iti' not in st.session_state:
+    st.session_state.showing_iti = False
+if 'iti_start_time' not in st.session_state:
+    st.session_state.iti_start_time = None
+if 'current_iti_duration' not in st.session_state:
+    st.session_state.current_iti_duration = None
+if 'last_was_timeout' not in st.session_state:
+    st.session_state.last_was_timeout = False
+if 'showing_break' not in st.session_state:
+    st.session_state.showing_break = False
+
+# 실험 모드 감지 (URL 파라미터)
+if 'experiment_mode' not in st.session_state:
+    mode_param = st.query_params.get("mode", "full")
+    st.session_state.experiment_mode = mode_param if mode_param in ["pilot", "full"] else "full"
+
+# 모드에 따른 trial 수 설정
+if st.session_state.experiment_mode == "pilot":
+    N_PER_CONDITION = N_PER_CONDITION_PILOT  # 10 → 30 trials
+    TOTAL_TRIALS = N_PER_CONDITION * 3  # 30
+else:
+    N_PER_CONDITION = N_PER_CONDITION_FULL  # 48 → 144 trials
+    TOTAL_TRIALS = N_PER_CONDITION * 3  # 144
 
 
 def read_client_rt():
@@ -265,10 +306,10 @@ def create_practice_trials():
     """Practice trials 생성 - 6 trials (색상 단어, congruent)"""
     color_words = [
         {'text': '빨강', 'letterColor': 'red', 'corrAns': 'red', 'condition': 'practice'},
-        {'text': '파랑', 'letterColor': 'blue', 'corrAns': 'blue', 'condition': 'practice'},
         {'text': '초록', 'letterColor': 'green', 'corrAns': 'green', 'condition': 'practice'},
         {'text': '빨강', 'letterColor': 'red', 'corrAns': 'red', 'condition': 'practice'},
-        {'text': '파랑', 'letterColor': 'blue', 'corrAns': 'blue', 'condition': 'practice'},
+        {'text': '초록', 'letterColor': 'green', 'corrAns': 'green', 'condition': 'practice'},
+        {'text': '빨강', 'letterColor': 'red', 'corrAns': 'red', 'condition': 'practice'},
         {'text': '초록', 'letterColor': 'green', 'corrAns': 'green', 'condition': 'practice'},
     ]
     trials = pd.DataFrame(color_words)
@@ -286,7 +327,7 @@ def create_exp_trials(n_per_condition=10):
     stimuli_path = Path("stimuli/final_144_words.csv")
     df = pd.read_csv(stimuli_path)
 
-    colors = ['red', 'blue', 'green']
+    colors = ['red', 'green']
 
     trials = []
     # 조건별로 n개씩 랜덤 샘플링
@@ -306,25 +347,35 @@ def create_exp_trials(n_per_condition=10):
     return pd.DataFrame(trials)
 
 
-def record_response(trial, response, is_practice=False, client_rt=None):
+def record_response(trial, response, is_practice=False, client_rt=None, is_timeout=False):
     """반응 기록 함수
 
     Args:
         trial: 현재 trial 정보
-        response: 참가자 반응 ('red', 'blue', 'green')
+        response: 참가자 반응 ('red', 'green', 'timeout')
         is_practice: 연습 시행 여부
         client_rt: 클라이언트 사이드에서 측정된 RT (ms) - 우선 사용
+        is_timeout: timeout 여부
     """
-    # RT 결정: 클라이언트 RT 우선, 없으면 서버 RT 사용
-    if client_rt is not None and client_rt > 0:
-        rt = client_rt / 1000  # ms -> seconds
-        rt_source = 'client'
+    # Timeout 처리
+    if is_timeout:
+        rt = MAX_RESPONSE_TIME
+        rt_source = 'timeout'
+        response = 'timeout'
+        accuracy = 0
+        st.session_state.last_was_timeout = True
     else:
-        rt = time.time() - st.session_state.start_time
-        rt_source = 'server'
+        # RT 결정: 클라이언트 RT 우선, 없으면 서버 RT 사용
+        if client_rt is not None and client_rt > 0:
+            rt = client_rt / 1000  # ms -> seconds
+            rt_source = 'client'
+        else:
+            rt = time.time() - st.session_state.start_time
+            rt_source = 'server'
 
-    correct_answer = trial.get('corrAns', trial.get('letterColor'))
-    accuracy = 1 if response == correct_answer else 0
+        correct_answer = trial.get('corrAns', trial.get('letterColor'))
+        accuracy = 1 if response == correct_answer else 0
+        st.session_state.last_was_timeout = False
 
     response_data = {
         'participant_id': st.session_state.participant_id,
@@ -346,12 +397,17 @@ def record_response(trial, response, is_practice=False, client_rt=None):
     else:
         st.session_state.responses.append(response_data)
         st.session_state.trial_num += 1
+        # 실험 시행: ITI 시작
+        st.session_state.showing_iti = True
+        st.session_state.iti_start_time = time.time()
+        st.session_state.current_iti_duration = random.uniform(ITI_MIN, ITI_MAX)
 
     st.session_state.start_time = None
 
     # 완료 체크
     if not is_practice and st.session_state.trial_num >= len(st.session_state.exp_trials):
         st.session_state.task_completed = True
+        st.session_state.showing_iti = False  # ITI 종료
 
     st.rerun()
 
@@ -495,7 +551,10 @@ def backup_to_google_sheets(df):
 if not st.session_state.task_started:
     st.title("Emotional Word Stroop Task")
     st.markdown("### 참가자 정보")
-    st.caption("🧪 Pilot: 30 trials (10 × 3 conditions)")
+    if st.session_state.experiment_mode == "pilot":
+        st.caption(f"🧪 Pilot 모드: {TOTAL_TRIALS} trials ({N_PER_CONDITION} × 3 conditions)")
+    else:
+        st.caption(f"📊 Full 모드: {TOTAL_TRIALS} trials ({N_PER_CONDITION} × 3 conditions, {NUM_BLOCKS} blocks)")
 
     st.info("⚠️ **시작 전**: 전체화면 모드로 전환해주세요  \n(Mac: Cmd+Ctrl+F, Windows: F11)")
 
@@ -514,28 +573,99 @@ if not st.session_state.task_started:
     st.stop()
 
 
-# 2. Practice Instructions
+# 2. Practice Instructions (여러 화면으로 분리)
 if not st.session_state.practice_completed:
     if not st.session_state.practice_instructions_shown:
-        st.title("📋 연습 과제 안내")
-        st.markdown("""
-        ### 지시사항
+        # 지시사항 페이지 정의 (2줄씩)
+        instruction_pages = [
+            {
+                "lines": [
+                    "화면에 **색깔로 표시된 단어**가 나타납니다.",
+                    "**단어의 의미는 무시**하고, **글자의 색깔만** 판단해주세요."
+                ],
+                "button": "다음"
+            },
+            {
+                "lines": [
+                    "키보드로 색깔을 선택하세요.",
+                    "🔴 **빨강**: **F** 키 &nbsp;&nbsp;&nbsp; 🟢 **초록**: **J** 키"
+                ],
+                "button": "다음"
+            },
+            {
+                "lines": [
+                    "먼저 **연습 시행**을 진행합니다.",
+                    "정답/오답 피드백이 제공됩니다."
+                ],
+                "button": "연습 시작"
+            }
+        ]
 
-        1. 화면에 **색깔로 표시된 단어**가 나타납니다.
-        2. **단어의 의미는 무시**하고, **글자의 색깔만** 판단해주세요.
-        3. 키보드로 색깔을 선택하세요:
-           - 🔴 **빨강**: **F** 키
-           - 🟢 **초록**: **J** 키
-           - 🔵 **파랑**: **Space bar**
+        current_page = st.session_state.instruction_page
+        page = instruction_pages[current_page]
+        is_last_page = current_page == len(instruction_pages) - 1
 
-        먼저 **연습 시행 6번**을 진행합니다. 정답/오답 피드백이 제공됩니다.
+        # 페이지 내용 표시
+        st.markdown(f'''
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
+                    height: 50vh; color: white; text-align: center;">
+            <p style="font-size: 32px; margin-bottom: 20px; line-height: 1.6;">{page["lines"][0]}</p>
+            <p style="font-size: 32px; margin-top: 20px; line-height: 1.6;">{page["lines"][1]}</p>
+        </div>
+        ''', unsafe_allow_html=True)
 
-        준비가 되면 아래 버튼을 눌러주세요.
-        """)
+        # 페이지 인디케이터
+        st.markdown(f'''
+        <div style="text-align: center; color: #666; margin-bottom: 20px;">
+            {current_page + 1} / {len(instruction_pages)}
+        </div>
+        ''', unsafe_allow_html=True)
 
-        if st.button("연습 시작"):
-            st.session_state.practice_instructions_shown = True
-            st.rerun()
+        # 버튼 컨테이너 (처음에는 숨김)
+        button_container = st.empty()
+
+        # 지연 후 버튼 표시 (JavaScript로 구현)
+        from streamlit.components.v1 import html
+        html(f"""
+        <script>
+        (function() {{
+            const DELAY_MS = 2000;  // 2초 후 버튼 표시
+
+            // 버튼 찾아서 숨김
+            function hideButton() {{
+                const allButtons = parent.document.querySelectorAll('button');
+                allButtons.forEach((btn) => {{
+                    const text = btn.textContent || btn.innerText;
+                    if (text.includes('{page["button"]}')) {{
+                        btn.style.opacity = '0';
+                        btn.style.pointerEvents = 'none';
+                        btn.style.transition = 'opacity 0.3s ease-in-out';
+
+                        // 지연 후 표시
+                        setTimeout(() => {{
+                            btn.style.opacity = '1';
+                            btn.style.pointerEvents = 'auto';
+                        }}, DELAY_MS);
+                    }}
+                }});
+            }}
+
+            // DOM이 로드된 후 실행
+            setTimeout(hideButton, 100);
+        }})();
+        </script>
+        """, height=0)
+
+        # 버튼 표시
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            if st.button(page["button"], key=f"instruction_btn_{current_page}", type="primary", use_container_width=True):
+                if is_last_page:
+                    st.session_state.practice_instructions_shown = True
+                    st.session_state.instruction_page = 0  # 리셋
+                else:
+                    st.session_state.instruction_page += 1
+                st.rerun()
 
         st.stop()
 
@@ -581,7 +711,7 @@ if not st.session_state.practice_completed:
             st.markdown("<br>", unsafe_allow_html=True)
 
         # Fixation cross + 자극 제시
-        color_hex_map = {'red': '#FF0000', 'green': '#00FF00', 'blue': '#0000FF'}
+        color_hex_map = {'red': '#FF0000', 'green': '#00FF00'}
         st.markdown(
             f'''
             <div class="fixation-cross">+</div>
@@ -598,7 +728,7 @@ if not st.session_state.practice_completed:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # 키보드 이벤트 리스너 (F, J, Space) - 클라이언트 사이드 RT 측정
+        # 키보드 이벤트 리스너 (F, J) - 클라이언트 사이드 RT 측정
         from streamlit.components.v1 import html
         html(f"""
         <script>
@@ -617,10 +747,10 @@ if not st.session_state.practice_completed:
 
             // Define new handler
             window.stroopKeyHandler = function(event) {{
-                const code = event.code;  // Physical key code (KeyF, KeyJ, Space)
+                const code = event.code;  // Physical key code (KeyF, KeyJ)
 
                 // Use event.code to detect physical keys (works with Korean/English keyboard)
-                if (code !== 'Space' && code !== 'KeyF' && code !== 'KeyJ') {{
+                if (code !== 'KeyF' && code !== 'KeyJ') {{
                     return;
                 }}
 
@@ -637,19 +767,17 @@ if not st.session_state.practice_completed:
 
                 // Find and click buttons
                 const allButtons = parent.document.querySelectorAll('button');
-                let redBtn = null, blueBtn = null, greenBtn = null;
+                let redBtn = null, greenBtn = null;
 
                 allButtons.forEach((btn) => {{
                     const text = btn.textContent || btn.innerText;
                     if (text.includes('🔴') || text.includes('빨강')) redBtn = btn;
-                    else if (text.includes('🔵') || text.includes('파랑')) blueBtn = btn;
                     else if (text.includes('🟢') || text.includes('초록')) greenBtn = btn;
                 }});
 
                 // Click the appropriate button based on physical key code
                 let targetBtn = null;
                 if (code === 'KeyF') targetBtn = redBtn;
-                else if (code === 'Space') targetBtn = blueBtn;
                 else if (code === 'KeyJ') targetBtn = greenBtn;
 
                 if (targetBtn) {{
@@ -665,22 +793,16 @@ if not st.session_state.practice_completed:
         """, height=0)
 
         # 반응 버튼
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2)
 
         with col1:
-            if st.button("🔴 빨강", key=f"practice_red_{st.session_state.practice_trial_num}", use_container_width=True, type="primary"):
+            if st.button("🔴 빨강 (F)", key=f"practice_red_{st.session_state.practice_trial_num}", use_container_width=True, type="primary"):
                 client_rt = st.session_state.pending_client_rt
                 st.session_state.pending_client_rt = None
                 record_response(trial, "red", is_practice=True, client_rt=client_rt)
 
         with col2:
-            if st.button("🔵 파랑", key=f"practice_blue_{st.session_state.practice_trial_num}", use_container_width=True, type="primary"):
-                client_rt = st.session_state.pending_client_rt
-                st.session_state.pending_client_rt = None
-                record_response(trial, "blue", is_practice=True, client_rt=client_rt)
-
-        with col3:
-            if st.button("🟢 초록", key=f"practice_green_{st.session_state.practice_trial_num}", use_container_width=True, type="primary"):
+            if st.button("🟢 초록 (J)", key=f"practice_green_{st.session_state.practice_trial_num}", use_container_width=True, type="primary"):
                 client_rt = st.session_state.pending_client_rt
                 st.session_state.pending_client_rt = None
                 record_response(trial, "green", is_practice=True, client_rt=client_rt)
@@ -700,14 +822,13 @@ if not st.session_state.instructions_exp_shown:
     st.markdown("""
     ### 연습이 끝났습니다!
 
-    이제 **본 과제 30번**을 진행합니다.
+    이제 **본 과제**를 진행합니다.
 
     - **정답/오답 피드백은 제공되지 않습니다.**
     - 앞의 연습과 동일하게, **글자의 색깔만** 판단해주세요.
     - 키보드로 색깔을 선택하세요:
        - 🔴 **빨강**: **F** 키
        - 🟢 **초록**: **J** 키
-       - 🔵 **파랑**: **Space bar**
 
     준비가 되면 아래 버튼을 눌러주세요.
     """)
@@ -715,7 +836,7 @@ if not st.session_state.instructions_exp_shown:
     if st.button("본 과제 시작"):
         st.session_state.instructions_exp_shown = True
         # Experimental trials 생성
-        st.session_state.exp_trials = create_exp_trials()
+        st.session_state.exp_trials = create_exp_trials(n_per_condition=N_PER_CONDITION)
         st.rerun()
 
     st.stop()
@@ -761,6 +882,66 @@ if st.session_state.task_completed:
 
 # 5. Experimental Trials 진행
 if st.session_state.trial_num < len(st.session_state.exp_trials):
+
+    # 블록 간 휴식 체크 (full 모드에서만 적용)
+    current_block = st.session_state.trial_num // TRIALS_PER_BLOCK + 1
+    is_block_start = (st.session_state.experiment_mode == "full" and
+                      st.session_state.trial_num > 0 and
+                      st.session_state.trial_num % TRIALS_PER_BLOCK == 0 and
+                      st.session_state.trial_num < len(st.session_state.exp_trials))
+
+    # 블록 시작 시 휴식 화면 표시
+    if is_block_start and not st.session_state.showing_break:
+        st.session_state.showing_break = True
+        st.rerun()
+
+    # 휴식 화면 표시 중
+    if st.session_state.showing_break:
+        completed_block = st.session_state.trial_num // TRIALS_PER_BLOCK
+        st.markdown(f'''
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
+                    height: 60vh; color: white; text-align: center;">
+            <h1 style="font-size: 48px; margin-bottom: 30px;">블록 {completed_block}/{NUM_BLOCKS} 완료!</h1>
+            <p style="font-size: 28px; margin-bottom: 50px;">잠시 휴식하세요.</p>
+        </div>
+        ''', unsafe_allow_html=True)
+
+        if st.button("다음 블록 시작", key="continue_block", type="primary"):
+            st.session_state.showing_break = False
+            st.rerun()
+        st.stop()
+
+    # ITI 표시 중인 경우
+    if st.session_state.showing_iti:
+        # ITI 완료 체크
+        elapsed_iti = time.time() - st.session_state.iti_start_time
+        if elapsed_iti >= st.session_state.current_iti_duration:
+            # ITI 완료 → 다음 trial로
+            st.session_state.showing_iti = False
+            st.session_state.iti_start_time = None
+            st.session_state.last_was_timeout = False
+            st.rerun()
+        else:
+            # ITI 중: 검은 화면 또는 timeout 피드백
+            if st.session_state.last_was_timeout:
+                st.markdown('''
+                <div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
+                            background-color: rgba(255, 165, 0, 0.2);
+                            border: 2px solid #FFA500;
+                            color: #FFA500;
+                            padding: 15px 30px;
+                            border-radius: 8px;
+                            font-size: 24px;
+                            font-weight: bold;
+                            z-index: 999;">
+                    너무 느립니다
+                </div>
+                ''', unsafe_allow_html=True)
+            # 잠시 후 rerun (ITI 대기)
+            time.sleep(0.1)
+            st.rerun()
+        st.stop()
+
     trial = st.session_state.exp_trials.iloc[st.session_state.trial_num]
 
     # 클라이언트 사이드 RT 읽기 (이전 시행에서 저장된 값)
@@ -768,8 +949,16 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
     if client_rt is not None:
         st.session_state.pending_client_rt = client_rt
 
+    # Timeout 체크 (서버 사이드)
+    if st.session_state.start_time is not None:
+        elapsed = time.time() - st.session_state.start_time
+        if elapsed >= MAX_RESPONSE_TIME + FIXATION_DURATION:
+            # Timeout 발생
+            record_response(trial, "timeout", is_timeout=True)
+            st.stop()
+
     # Fixation cross + 자극 제시
-    color_hex_map = {'red': '#FF0000', 'green': '#00FF00', 'blue': '#0000FF'}
+    color_hex_map = {'red': '#FF0000', 'green': '#00FF00'}
     st.markdown(
         f'''
         <div class="fixation-cross">+</div>
@@ -786,34 +975,64 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 키보드 이벤트 리스너 (F, J, Space) - 클라이언트 사이드 RT 측정
+    # 키보드 이벤트 리스너 (F, J) - 클라이언트 사이드 RT 측정 + Timeout
     from streamlit.components.v1 import html
     html(f"""
     <script>
     (function() {{
         const tryNum = {st.session_state.trial_num};
+        const MAX_RESPONSE_TIME = {int(MAX_RESPONSE_TIME * 1000)};  // ms
 
         // 자극 표시 시점 기록 (CSS 애니메이션 0.5초 후 = 실제 자극 표시 시점)
         const FIXATION_DURATION = 500;  // ms
         window.stimulusShownTime = performance.now() + FIXATION_DURATION;
         console.log('Stimulus will be shown at:', window.stimulusShownTime);
 
-        // Remove ALL previous listeners
+        // Timeout 플래그
+        window.stroopResponseMade = false;
+
+        // Remove ALL previous listeners and timers
         if (window.stroopKeyHandler) {{
             parent.document.removeEventListener('keydown', window.stroopKeyHandler);
         }}
+        if (window.stroopTimeoutTimer) {{
+            clearTimeout(window.stroopTimeoutTimer);
+        }}
+
+        // Timeout 핸들러 - 2초 후 자동으로 timeout 버튼 클릭
+        window.stroopTimeoutTimer = setTimeout(function() {{
+            if (!window.stroopResponseMade) {{
+                console.log('Timeout! No response within', MAX_RESPONSE_TIME, 'ms');
+                // Timeout으로 localStorage에 저장
+                localStorage.setItem('stroopClientRT', 'timeout');
+                // timeout 버튼 찾아서 클릭
+                const allButtons = parent.document.querySelectorAll('button');
+                allButtons.forEach((btn) => {{
+                    const text = btn.textContent || btn.innerText;
+                    if (text.includes('timeout')) {{
+                        btn.click();
+                    }}
+                }});
+            }}
+        }}, FIXATION_DURATION + MAX_RESPONSE_TIME);
 
         // Define new handler
         window.stroopKeyHandler = function(event) {{
-            const code = event.code;  // Physical key code (KeyF, KeyJ, Space)
+            const code = event.code;  // Physical key code (KeyF, KeyJ)
 
             // Use event.code to detect physical keys (works with Korean/English keyboard)
-            if (code !== 'Space' && code !== 'KeyF' && code !== 'KeyJ') {{
+            if (code !== 'KeyF' && code !== 'KeyJ') {{
                 return;
             }}
 
             event.preventDefault();
             event.stopPropagation();
+
+            // 응답 완료 플래그
+            window.stroopResponseMade = true;
+            if (window.stroopTimeoutTimer) {{
+                clearTimeout(window.stroopTimeoutTimer);
+            }}
 
             // 클라이언트 사이드 RT 계산
             const keyPressTime = performance.now();
@@ -825,19 +1044,17 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
 
             // Find and click buttons
             const allButtons = parent.document.querySelectorAll('button');
-            let redBtn = null, blueBtn = null, greenBtn = null;
+            let redBtn = null, greenBtn = null;
 
             allButtons.forEach((btn) => {{
                 const text = btn.textContent || btn.innerText;
                 if (text.includes('🔴') || text.includes('빨강')) redBtn = btn;
-                else if (text.includes('🔵') || text.includes('파랑')) blueBtn = btn;
                 else if (text.includes('🟢') || text.includes('초록')) greenBtn = btn;
             }});
 
             // Click the appropriate button based on physical key code
             let targetBtn = null;
             if (code === 'KeyF') targetBtn = redBtn;
-            else if (code === 'Space') targetBtn = blueBtn;
             else if (code === 'KeyJ') targetBtn = greenBtn;
 
             if (targetBtn) {{
@@ -847,31 +1064,30 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
 
         // Add the new listener
         parent.document.addEventListener('keydown', window.stroopKeyHandler);
-        console.log('Keyboard handler installed for trial', tryNum);
+        console.log('Keyboard handler installed for trial', tryNum, 'with timeout:', MAX_RESPONSE_TIME, 'ms');
     }})();
     </script>
     """, height=0)
 
     # 반응 버튼
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns([2, 2, 1])
 
     with col1:
-        if st.button("🔴 빨강", key=f"red_{st.session_state.trial_num}", use_container_width=True, type="primary"):
+        if st.button("🔴 빨강 (F)", key=f"red_{st.session_state.trial_num}", use_container_width=True, type="primary"):
             client_rt = st.session_state.pending_client_rt
             st.session_state.pending_client_rt = None
             record_response(trial, "red", client_rt=client_rt)
 
     with col2:
-        if st.button("🔵 파랑", key=f"blue_{st.session_state.trial_num}", use_container_width=True, type="primary"):
-            client_rt = st.session_state.pending_client_rt
-            st.session_state.pending_client_rt = None
-            record_response(trial, "blue", client_rt=client_rt)
-
-    with col3:
-        if st.button("🟢 초록", key=f"green_{st.session_state.trial_num}", use_container_width=True, type="primary"):
+        if st.button("🟢 초록 (J)", key=f"green_{st.session_state.trial_num}", use_container_width=True, type="primary"):
             client_rt = st.session_state.pending_client_rt
             st.session_state.pending_client_rt = None
             record_response(trial, "green", client_rt=client_rt)
+
+    with col3:
+        # 숨겨진 timeout 버튼
+        if st.button("timeout", key=f"timeout_{st.session_state.trial_num}"):
+            record_response(trial, "timeout", is_timeout=True)
 
 else:
     st.session_state.task_completed = True
