@@ -216,6 +216,16 @@ st.markdown("""
     .stInfo p, .stInfo div {
         color: #FFFFFF !important;
     }
+
+    /* 지시사항 페이지 버튼 지연 표시 (2초 후 fade in) */
+    @keyframes delayedFadeIn {
+        0%, 95% { opacity: 0; pointer-events: none; }
+        100% { opacity: 1; pointer-events: auto; }
+    }
+
+    .instruction-page-btn button {
+        animation: delayedFadeIn 2.1s ease-in-out forwards !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -303,17 +313,29 @@ def read_client_rt():
 
 
 def create_practice_trials():
-    """Practice trials 생성 - 6 trials (색상 단어, congruent)"""
-    color_words = [
-        {'text': '빨강', 'letterColor': 'red', 'corrAns': 'red', 'condition': 'practice'},
-        {'text': '초록', 'letterColor': 'green', 'corrAns': 'green', 'condition': 'practice'},
-        {'text': '빨강', 'letterColor': 'red', 'corrAns': 'red', 'condition': 'practice'},
-        {'text': '초록', 'letterColor': 'green', 'corrAns': 'green', 'condition': 'practice'},
-        {'text': '빨강', 'letterColor': 'red', 'corrAns': 'red', 'condition': 'practice'},
-        {'text': '초록', 'letterColor': 'green', 'corrAns': 'green', 'condition': 'practice'},
-    ]
-    trials = pd.DataFrame(color_words)
-    return trials.sample(frac=1).reset_index(drop=True)
+    """Practice trials 생성 - final_practice_words.csv에서 neutral 단어 사용
+
+    각 단어를 빨강/초록으로 무작위 배정하여 연습 시행 생성
+    """
+    # final_practice_words.csv에서 연습 단어 로드
+    practice_path = Path("stimuli/final_practice_words.csv")
+    df = pd.read_csv(practice_path)
+
+    colors = ['red', 'green']
+    trials = []
+
+    for _, row in df.iterrows():
+        color = random.choice(colors)
+        trials.append({
+            'text': row['word'],
+            'letterColor': color,
+            'corrAns': color,
+            'condition': 'practice'
+        })
+
+    # 전체 무선화
+    random.shuffle(trials)
+    return pd.DataFrame(trials)
 
 
 def create_exp_trials(n_per_condition=10):
@@ -614,22 +636,35 @@ if not st.session_state.practice_completed:
         </div>
         ''', unsafe_allow_html=True)
 
-        # 버튼 컨테이너 (처음에는 숨김)
-        button_container = st.empty()
+        # 버튼 표시 (JavaScript로 2초 후 fade in)
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            if st.button(page["button"], key=f"instruction_btn_{current_page}", type="primary", use_container_width=True):
+                if is_last_page:
+                    st.session_state.practice_instructions_shown = True
+                    st.session_state.instruction_page = 0  # 리셋
+                else:
+                    st.session_state.instruction_page += 1
+                st.rerun()
 
-        # 지연 후 버튼 표시 (JavaScript로 구현)
+        # 버튼 지연 표시 JavaScript
         from streamlit.components.v1 import html
         html(f"""
         <script>
         (function() {{
-            const DELAY_MS = 2000;  // 2초 후 버튼 표시
+            const DELAY_MS = 2000;
+            const buttonText = '{page["button"]}';
 
-            // 버튼 찾아서 숨김
-            function hideButton() {{
+            function hideAndShowButton() {{
+                // 모든 버튼 검색 (parent.document 사용 - iframe 내부에서 실행되므로)
                 const allButtons = parent.document.querySelectorAll('button');
+                let found = false;
+
                 allButtons.forEach((btn) => {{
-                    const text = btn.textContent || btn.innerText;
-                    if (text.includes('{page["button"]}')) {{
+                    const text = (btn.textContent || btn.innerText).trim();
+                    if (text === buttonText) {{
+                        found = true;
+                        // 처음에 숨김
                         btn.style.opacity = '0';
                         btn.style.pointerEvents = 'none';
                         btn.style.transition = 'opacity 0.3s ease-in-out';
@@ -641,24 +676,18 @@ if not st.session_state.practice_completed:
                         }}, DELAY_MS);
                     }}
                 }});
+
+                // 버튼을 못 찾으면 재시도
+                if (!found) {{
+                    setTimeout(hideAndShowButton, 50);
+                }}
             }}
 
-            // DOM이 로드된 후 실행
-            setTimeout(hideButton, 100);
+            // 즉시 실행
+            hideAndShowButton();
         }})();
         </script>
         """, height=0)
-
-        # 버튼 표시
-        col1, col2, col3 = st.columns([1, 1, 1])
-        with col2:
-            if st.button(page["button"], key=f"instruction_btn_{current_page}", type="primary", use_container_width=True):
-                if is_last_page:
-                    st.session_state.practice_instructions_shown = True
-                    st.session_state.instruction_page = 0  # 리셋
-                else:
-                    st.session_state.instruction_page += 1
-                st.rerun()
 
         st.stop()
 
