@@ -296,12 +296,6 @@ if 'practice_showing_feedback' not in st.session_state:
     st.session_state.practice_showing_feedback = False
 if 'practice_feedback_start_time' not in st.session_state:
     st.session_state.practice_feedback_start_time = None
-if 'practice_showing_iti' not in st.session_state:
-    st.session_state.practice_showing_iti = False
-if 'practice_iti_start_time' not in st.session_state:
-    st.session_state.practice_iti_start_time = None
-if 'practice_iti_duration' not in st.session_state:
-    st.session_state.practice_iti_duration = None
 
 # 실험 모드 감지 (URL 파라미터)
 if 'experiment_mode' not in st.session_state:
@@ -739,36 +733,16 @@ if not st.session_state.practice_completed:
                 time.sleep(0.1)
                 st.rerun()
             else:
-                # 피드백 종료 → ITI 시작
+                # 피드백 종료 → 바로 다음 자극 (연습 시행은 ITI 없음)
                 st.session_state.practice_showing_feedback = False
                 st.session_state.practice_feedback_start_time = None
                 st.session_state.last_response_correct = None
                 st.session_state.last_was_timeout = False
-                # ITI 시작
-                st.session_state.practice_showing_iti = True
-                st.session_state.practice_iti_start_time = time.time()
-                st.session_state.practice_iti_duration = random.uniform(ITI_MIN, ITI_MAX)
                 st.rerun()
 
             st.stop()
 
-        # Phase 2: ITI (검정 화면, 0.8~1.2초)
-        if st.session_state.practice_showing_iti:
-            elapsed = time.time() - st.session_state.practice_iti_start_time
-
-            if elapsed < st.session_state.practice_iti_duration:
-                # 검정 화면 (아무것도 표시 안함)
-                time.sleep(0.1)
-                st.rerun()
-            else:
-                # ITI 종료 → 자극 표시로
-                st.session_state.practice_showing_iti = False
-                st.session_state.practice_iti_start_time = None
-                st.rerun()
-
-            st.stop()
-
-        # Phase 3: 자극 표시
+        # 자극 표시
         trial = st.session_state.practice_trials.iloc[st.session_state.practice_trial_num]
 
         # 클라이언트 사이드 RT 읽기 (이전 시행에서 저장된 값)
