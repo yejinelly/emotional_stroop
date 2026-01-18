@@ -636,49 +636,27 @@ if not st.session_state.practice_completed:
         page = instruction_pages[current_page]
         is_last_page = current_page == len(instruction_pages) - 1
 
-        # 페이지 내용 + 버튼 (모두 중앙 정렬)
+        # 페이지 내용 (중앙 정렬)
         st.markdown(f'''
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
-                    height: 70vh; color: white; text-align: center;">
+                    min-height: 50vh; color: white; text-align: center; padding-top: 15vh;">
             <p style="font-size: 32px; margin-bottom: 20px; line-height: 1.6;">{page["lines"][0]}</p>
-            <p style="font-size: 32px; margin-top: 20px; line-height: 1.6;">{page["lines"][1]}</p>
+            <p style="font-size: 32px; margin-top: 20px; margin-bottom: 60px; line-height: 1.6;">{page["lines"][1]}</p>
         </div>
         ''', unsafe_allow_html=True)
 
-        # 버튼 컨테이너 (JavaScript로 중앙 정렬)
-        button_container = st.container()
-        with button_container:
-            clicked = st.button(page["button"], key=f"instruction_btn_{current_page}", type="primary")
+        # 버튼 영역 - 텍스트 바로 아래 중앙에 배치
+        st.markdown('''
+        <style>
+        /* 지시사항 페이지 버튼 강제 중앙 정렬 */
+        [data-testid="stVerticalBlock"] > [data-testid="stVerticalBlock"] > div:has(button:not(:empty)) {
+            display: flex !important;
+            justify-content: center !important;
+        }
+        </style>
+        ''', unsafe_allow_html=True)
 
-        # JavaScript로 버튼 중앙 정렬
-        from streamlit.components.v1 import html
-        html(f"""
-        <script>
-        (function() {{
-            function centerButton() {{
-                const buttons = parent.document.querySelectorAll('button');
-                buttons.forEach(btn => {{
-                    const text = btn.textContent || btn.innerText;
-                    if (text === '다음' || text === '연습 시작') {{
-                        btn.style.position = 'relative';
-                        btn.style.left = '50%';
-                        btn.style.transform = 'translateX(-50%)';
-                        btn.style.display = 'block';
-                        btn.style.width = 'auto';
-                        btn.style.height = 'auto';
-                        btn.style.opacity = '1';
-                        btn.style.overflow = 'visible';
-                        btn.style.zIndex = '100';
-                        btn.style.pointerEvents = 'auto';
-                    }}
-                }});
-            }}
-            setTimeout(centerButton, 100);
-            setTimeout(centerButton, 300);
-            setTimeout(centerButton, 500);
-        }})();
-        </script>
-        """, height=0)
+        clicked = st.button(page["button"], key=f"instruction_btn_{current_page}", type="primary")
 
         if clicked:
             if is_last_page:
