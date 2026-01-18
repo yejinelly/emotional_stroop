@@ -69,18 +69,7 @@ st.markdown("""
     /* Caption (trial 번호) 숨기기 */
     .stCaptionContainer {display: none !important;}
 
-    /* 반응 버튼만 숨기기 (키보드만 사용) - 시각적으로만 숨김 */
-    .stColumn button {
-        position: fixed !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        opacity: 0.01 !important;
-        width: 1px !important;
-        height: 1px !important;
-        overflow: hidden !important;
-        pointer-events: auto !important;
-        z-index: -1 !important;
-    }
+    /* 반응 버튼 숨기기는 JavaScript로 처리 (특정 버튼만 선택적으로) */
 
     /* 일반 버튼들 스타일 (시작, 다운로드 등) - 모든 일반 버튼 */
     button {
@@ -617,17 +606,28 @@ if not st.session_state.practice_completed:
         page = instruction_pages[current_page]
         is_last_page = current_page == len(instruction_pages) - 1
 
-        # 페이지 내용 표시
+        # 페이지 내용 + 버튼 (모두 중앙 정렬)
         st.markdown(f'''
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
-                    height: 50vh; color: white; text-align: center;">
+                    height: 70vh; color: white; text-align: center;">
             <p style="font-size: 32px; margin-bottom: 20px; line-height: 1.6;">{page["lines"][0]}</p>
             <p style="font-size: 32px; margin-top: 20px; line-height: 1.6;">{page["lines"][1]}</p>
         </div>
         ''', unsafe_allow_html=True)
 
-        # 버튼 표시 (중앙 정렬)
-        st.markdown('<div style="display: flex; justify-content: center; margin-top: 30px;">', unsafe_allow_html=True)
+        # 버튼을 화면 중앙 하단에 고정
+        st.markdown('''
+        <style>
+        div[data-testid="stVerticalBlock"] > div:has(button):last-child {
+            position: fixed;
+            bottom: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+        }
+        </style>
+        ''', unsafe_allow_html=True)
+
         if st.button(page["button"], key=f"instruction_btn_{current_page}", type="primary"):
             if is_last_page:
                 st.session_state.practice_instructions_shown = True
@@ -635,7 +635,6 @@ if not st.session_state.practice_completed:
             else:
                 st.session_state.instruction_page += 1
             st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
 
         st.stop()
 
@@ -704,6 +703,25 @@ if not st.session_state.practice_completed:
         <script>
         (function() {{
             const tryNum = {st.session_state.practice_trial_num};
+
+            // 반응 버튼 숨기기 (키보드로만 반응)
+            function hideResponseButtons() {{
+                const allButtons = parent.document.querySelectorAll('button');
+                allButtons.forEach((btn) => {{
+                    const text = btn.textContent || btn.innerText;
+                    if (text.includes('🔴') || text.includes('🟢') || text.includes('빨강') || text.includes('초록')) {{
+                        btn.style.position = 'fixed';
+                        btn.style.bottom = '0';
+                        btn.style.left = '0';
+                        btn.style.opacity = '0.01';
+                        btn.style.width = '1px';
+                        btn.style.height = '1px';
+                        btn.style.overflow = 'hidden';
+                        btn.style.zIndex = '-1';
+                    }}
+                }});
+            }}
+            setTimeout(hideResponseButtons, 50);
 
             // 자극 표시 시점 기록 (CSS 애니메이션 0.5초 후 = 실제 자극 표시 시점)
             const FIXATION_DURATION = 500;  // ms
