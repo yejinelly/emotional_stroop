@@ -792,19 +792,32 @@ if not st.session_state.practice_completed:
         elif has_feedback:
             # 이후 시행 + 피드백 있음: 피드백 먼저 표시 후 자극 (CSS 애니메이션으로 순서 제어)
             if st.session_state.last_was_timeout:
-                feedback_class = "practice-feedback practice-feedback-timeout"
+                feedback_style_class = "practice-feedback-timeout"
                 feedback_text = "너무 느립니다"
             elif st.session_state.last_response_correct == 1:
-                feedback_class = "practice-feedback practice-feedback-correct"
+                feedback_style_class = "practice-feedback-correct"
                 feedback_text = "정답"
             else:
-                feedback_class = "practice-feedback practice-feedback-incorrect"
+                feedback_style_class = "practice-feedback-incorrect"
                 feedback_text = "오답"
 
+            # 매 trial마다 고유한 애니메이션 이름 생성 (브라우저가 새 애니메이션으로 인식)
+            trial_num = st.session_state.practice_trial_num
             st.markdown(
                 f'''
-                <div class="{feedback_class}">{feedback_text}</div>
-                <div class="stimulus-after-feedback">
+                <style>
+                @keyframes feedbackShow{trial_num} {{
+                    0% {{ opacity: 1; }}
+                    80% {{ opacity: 1; }}
+                    100% {{ opacity: 0; }}
+                }}
+                @keyframes stimulusAfterFeedback{trial_num} {{
+                    0% {{ opacity: 0; }}
+                    100% {{ opacity: 1; }}
+                }}
+                </style>
+                <div class="practice-feedback {feedback_style_class}" style="animation: feedbackShow{trial_num} 1s ease-in-out forwards;">{feedback_text}</div>
+                <div class="stimulus-after-feedback" style="animation: stimulusAfterFeedback{trial_num} 0.3s ease-in-out 1s forwards;">
                     <h1 style="color:{color_hex_map[trial["letterColor"]]}; font-size:80px; font-weight:bold; text-align:center;">{trial["text"]}</h1>
                 </div>
                 ''',
