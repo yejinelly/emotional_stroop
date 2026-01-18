@@ -216,16 +216,6 @@ st.markdown("""
     .stInfo p, .stInfo div {
         color: #FFFFFF !important;
     }
-
-    /* 지시사항 페이지 버튼 지연 표시 (2초 후 fade in) */
-    @keyframes delayedFadeIn {
-        0%, 95% { opacity: 0; pointer-events: none; }
-        100% { opacity: 1; pointer-events: auto; }
-    }
-
-    .instruction-page-btn button {
-        animation: delayedFadeIn 2.1s ease-in-out forwards !important;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -636,7 +626,7 @@ if not st.session_state.practice_completed:
         </div>
         ''', unsafe_allow_html=True)
 
-        # 버튼 표시 (JavaScript로 2초 후 fade in)
+        # 버튼 표시 (바로 표시)
         col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
             if st.button(page["button"], key=f"instruction_btn_{current_page}", type="primary", use_container_width=True):
@@ -646,48 +636,6 @@ if not st.session_state.practice_completed:
                 else:
                     st.session_state.instruction_page += 1
                 st.rerun()
-
-        # 버튼 지연 표시 JavaScript
-        from streamlit.components.v1 import html
-        html(f"""
-        <script>
-        (function() {{
-            const DELAY_MS = 2000;
-            const buttonText = '{page["button"]}';
-
-            function hideAndShowButton() {{
-                // 모든 버튼 검색 (parent.document 사용 - iframe 내부에서 실행되므로)
-                const allButtons = parent.document.querySelectorAll('button');
-                let found = false;
-
-                allButtons.forEach((btn) => {{
-                    const text = (btn.textContent || btn.innerText).trim();
-                    if (text === buttonText) {{
-                        found = true;
-                        // 처음에 숨김
-                        btn.style.opacity = '0';
-                        btn.style.pointerEvents = 'none';
-                        btn.style.transition = 'opacity 0.3s ease-in-out';
-
-                        // 지연 후 표시
-                        setTimeout(() => {{
-                            btn.style.opacity = '1';
-                            btn.style.pointerEvents = 'auto';
-                        }}, DELAY_MS);
-                    }}
-                }});
-
-                // 버튼을 못 찾으면 재시도
-                if (!found) {{
-                    setTimeout(hideAndShowButton, 50);
-                }}
-            }}
-
-            // 즉시 실행
-            hideAndShowButton();
-        }})();
-        </script>
-        """, height=0)
 
         st.stop()
 
