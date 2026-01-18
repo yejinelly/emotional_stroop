@@ -69,7 +69,18 @@ st.markdown("""
     /* Caption (trial 번호) 숨기기 */
     .stCaptionContainer {display: none !important;}
 
-    /* 반응 버튼 숨기기는 JavaScript로 처리 (특정 버튼만 선택적으로) */
+    /* 반응 버튼 숨기기 (columns 안의 버튼) - 키보드로만 반응 */
+    .stColumn button {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        opacity: 0.01 !important;
+        width: 1px !important;
+        height: 1px !important;
+        overflow: hidden !important;
+        pointer-events: auto !important;
+        z-index: -1 !important;
+    }
 
     /* 일반 버튼들 스타일 (시작, 다운로드 등) - 모든 일반 버튼 */
     button {
@@ -615,12 +626,18 @@ if not st.session_state.practice_completed:
         </div>
         ''', unsafe_allow_html=True)
 
-        # 버튼 중앙 정렬
-        st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
-        col1, col2, col3 = st.columns([3, 2, 3])
-        with col2:
-            clicked = st.button(page["button"], key=f"instruction_btn_{current_page}", type="primary", use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        # 버튼 중앙 정렬 (columns 사용 안 함 - CSS로 중앙 배치)
+        st.markdown('''
+        <style>
+        /* 지시사항 버튼 중앙 정렬 */
+        div[data-testid="stButton"] {
+            display: flex;
+            justify-content: center;
+        }
+        </style>
+        ''', unsafe_allow_html=True)
+
+        clicked = st.button(page["button"], key=f"instruction_btn_{current_page}", type="primary")
 
         if clicked:
             if is_last_page:
