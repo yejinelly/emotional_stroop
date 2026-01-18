@@ -645,14 +645,17 @@ if not st.session_state.practice_completed:
         </div>
         ''', unsafe_allow_html=True)
 
-        # 버튼 영역 - 텍스트 바로 아래 중앙에 배치
-        st.markdown('''
+        # 버튼 - 화면 중앙 하단에 고정
+        st.markdown(f'''
         <style>
-        /* 지시사항 페이지 버튼 강제 중앙 정렬 */
-        [data-testid="stVerticalBlock"] > [data-testid="stVerticalBlock"] > div:has(button:not(:empty)) {
-            display: flex !important;
-            justify-content: center !important;
-        }
+        /* 지시사항 버튼 고정 위치 중앙 */
+        div[data-testid="stButton"]:has(button) {{
+            position: fixed !important;
+            bottom: 20% !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            z-index: 1000 !important;
+        }}
         </style>
         ''', unsafe_allow_html=True)
 
