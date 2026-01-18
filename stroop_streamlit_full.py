@@ -422,9 +422,6 @@ def record_response(trial, response, is_practice=False, client_rt=None, is_timeo
         st.session_state.practice_responses.append(response_data)
         st.session_state.last_response_correct = accuracy
         st.session_state.practice_trial_num += 1
-        # 피드백 표시 상태 시작 (1초간 피드백만 표시)
-        st.session_state.practice_showing_feedback = True
-        st.session_state.practice_feedback_start_time = time.time()
     else:
         st.session_state.responses.append(response_data)
         st.session_state.trial_num += 1
@@ -645,7 +642,7 @@ if not st.session_state.practice_completed:
         </div>
         ''', unsafe_allow_html=True)
 
-        # 버튼 - 화면 중앙 하단에 고정
+        # 버튼 - 화면 중앙 하단에 고정 (너비 제한)
         st.markdown(f'''
         <style>
         /* 지시사항 버튼 고정 위치 중앙 */
@@ -655,6 +652,12 @@ if not st.session_state.practice_completed:
             left: 50% !important;
             transform: translateX(-50%) !important;
             z-index: 1000 !important;
+            width: auto !important;
+            max-width: 200px !important;
+        }}
+        div[data-testid="stButton"]:has(button) button {{
+            width: auto !important;
+            padding: 10px 40px !important;
         }}
         </style>
         ''', unsafe_allow_html=True)
@@ -673,58 +676,66 @@ if not st.session_state.practice_completed:
 
     # Practice Trial 진행
     if st.session_state.practice_trial_num < len(st.session_state.practice_trials):
-
-        # 피드백 표시 중인 경우 (반응 직후)
-        if st.session_state.practice_showing_feedback:
-            # 피드백 시간 체크 (1초)
-            elapsed = time.time() - st.session_state.practice_feedback_start_time
-            if elapsed >= 1.0:
-                # 피드백 종료 → 다음 자극으로
-                st.session_state.practice_showing_feedback = False
-                st.session_state.practice_feedback_start_time = None
-                st.session_state.last_response_correct = None
-                st.rerun()
-            else:
-                # 피드백만 표시 (자극 없이)
-                if st.session_state.last_response_correct == 1:
-                    st.markdown('''
-                    <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                                background-color: rgba(76, 175, 80, 0.2);
-                                border: 3px solid #4CAF50;
-                                color: #4CAF50;
-                                padding: 30px 60px;
-                                border-radius: 12px;
-                                font-size: 48px;
-                                font-weight: bold;
-                                z-index: 999;">
-                        정답
-                    </div>
-                    ''', unsafe_allow_html=True)
-                else:
-                    st.markdown('''
-                    <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                                background-color: rgba(244, 67, 54, 0.2);
-                                border: 3px solid #f44336;
-                                color: #f44336;
-                                padding: 30px 60px;
-                                border-radius: 12px;
-                                font-size: 48px;
-                                font-weight: bold;
-                                z-index: 999;">
-                        오답
-                    </div>
-                    ''', unsafe_allow_html=True)
-                # 피드백 대기
-                time.sleep(0.1)
-                st.rerun()
-            st.stop()
-
         trial = st.session_state.practice_trials.iloc[st.session_state.practice_trial_num]
 
         # 클라이언트 사이드 RT 읽기 (이전 시행에서 저장된 값)
         client_rt = read_client_rt()
         if client_rt is not None:
             st.session_state.pending_client_rt = client_rt
+
+        # 피드백 표시 (이전 trial) - 화면 상단에 표시
+        if st.session_state.last_response_correct is not None:
+            if st.session_state.last_was_timeout:
+                # Timeout 피드백: 너무 느립니다
+                st.markdown('''
+                <div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
+                            background-color: rgba(255, 165, 0, 0.2);
+                            border: 2px solid #FFA500;
+                            color: #FFA500;
+                            padding: 15px 30px;
+                            border-radius: 8px;
+                            font-size: 24px;
+                            font-weight: bold;
+                            z-index: 999;">
+                    너무 느립니다
+                </div>
+                ''', unsafe_allow_html=True)
+            elif st.session_state.last_response_correct == 1:
+                st.markdown('''
+                <div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
+                            background-color: rgba(76, 175, 80, 0.2);
+                            border: 2px solid #4CAF50;
+                            color: #4CAF50;
+                            padding: 15px 30px;
+                            border-radius: 8px;
+                            font-size: 24px;
+                            font-weight: bold;
+                            z-index: 999;">
+                    정답
+                </div>
+                ''', unsafe_allow_html=True)
+            else:
+                st.markdown('''
+                <div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
+                            background-color: rgba(244, 67, 54, 0.2);
+                            border: 2px solid #f44336;
+                            color: #f44336;
+                            padding: 15px 30px;
+                            border-radius: 8px;
+                            font-size: 24px;
+                            font-weight: bold;
+                            z-index: 999;">
+                    오답
+                </div>
+                ''', unsafe_allow_html=True)
+
+        # Timeout 체크 (연습 시행도 동일하게 적용)
+        if st.session_state.start_time is not None:
+            elapsed = time.time() - st.session_state.start_time
+            if elapsed >= MAX_RESPONSE_TIME + FIXATION_DURATION:
+                # Timeout 발생
+                record_response(trial, "timeout", is_practice=True, is_timeout=True)
+                st.stop()
 
         # Fixation cross + 자극 제시
         color_hex_map = {'red': '#FF0000', 'green': '#00FF00'}
@@ -744,12 +755,13 @@ if not st.session_state.practice_completed:
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # 키보드 이벤트 리스너 (F, J) - 클라이언트 사이드 RT 측정
+        # 키보드 이벤트 리스너 (F, J) - 클라이언트 사이드 RT 측정 + Timeout
         from streamlit.components.v1 import html
         html(f"""
         <script>
         (function() {{
             const tryNum = {st.session_state.practice_trial_num};
+            const MAX_RESPONSE_TIME = {int(MAX_RESPONSE_TIME * 1000)};  // ms
 
             // 반응 버튼 숨기기 (키보드로만 반응)
             function hideResponseButtons() {{
@@ -773,12 +785,33 @@ if not st.session_state.practice_completed:
             // 자극 표시 시점 기록 (CSS 애니메이션 0.5초 후 = 실제 자극 표시 시점)
             const FIXATION_DURATION = 500;  // ms
             window.stimulusShownTime = performance.now() + FIXATION_DURATION;
-            console.log('Stimulus will be shown at:', window.stimulusShownTime);
+            console.log('Practice stimulus will be shown at:', window.stimulusShownTime);
 
-            // Remove ALL previous listeners
+            // Timeout 플래그
+            window.stroopResponseMade = false;
+
+            // Remove ALL previous listeners and timers
             if (window.stroopKeyHandler) {{
                 parent.document.removeEventListener('keydown', window.stroopKeyHandler);
             }}
+            if (window.stroopTimeoutTimer) {{
+                clearTimeout(window.stroopTimeoutTimer);
+            }}
+
+            // Timeout 핸들러 - 3초 후 자동으로 timeout 버튼 클릭
+            window.stroopTimeoutTimer = setTimeout(function() {{
+                if (!window.stroopResponseMade) {{
+                    console.log('Practice Timeout! No response within', MAX_RESPONSE_TIME, 'ms');
+                    localStorage.setItem('stroopClientRT', 'timeout');
+                    const allButtons = parent.document.querySelectorAll('button');
+                    allButtons.forEach((btn) => {{
+                        const text = btn.textContent || btn.innerText;
+                        if (text.includes('timeout')) {{
+                            btn.click();
+                        }}
+                    }});
+                }}
+            }}, FIXATION_DURATION + MAX_RESPONSE_TIME);
 
             // Define new handler
             window.stroopKeyHandler = function(event) {{
@@ -792,10 +825,16 @@ if not st.session_state.practice_completed:
                 event.preventDefault();
                 event.stopPropagation();
 
+                // 응답 완료 플래그
+                window.stroopResponseMade = true;
+                if (window.stroopTimeoutTimer) {{
+                    clearTimeout(window.stroopTimeoutTimer);
+                }}
+
                 // 클라이언트 사이드 RT 계산
                 const keyPressTime = performance.now();
                 const clientRT = Math.max(0, keyPressTime - window.stimulusShownTime);
-                console.log('Client RT:', clientRT.toFixed(2), 'ms');
+                console.log('Practice Client RT:', clientRT.toFixed(2), 'ms');
 
                 // RT를 localStorage에 저장 (Python에서 읽기 위함)
                 localStorage.setItem('stroopClientRT', clientRT.toString());
@@ -822,13 +861,13 @@ if not st.session_state.practice_completed:
 
             // Add the new listener
             parent.document.addEventListener('keydown', window.stroopKeyHandler);
-            console.log('Keyboard handler installed for trial', tryNum);
+            console.log('Practice keyboard handler installed for trial', tryNum, 'with timeout:', MAX_RESPONSE_TIME, 'ms');
         }})();
         </script>
         """, height=0)
 
         # 반응 버튼
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns([2, 2, 1])
 
         with col1:
             if st.button("🔴 빨강 (F)", key=f"practice_red_{st.session_state.practice_trial_num}", use_container_width=True, type="primary"):
@@ -841,6 +880,11 @@ if not st.session_state.practice_completed:
                 client_rt = st.session_state.pending_client_rt
                 st.session_state.pending_client_rt = None
                 record_response(trial, "green", is_practice=True, client_rt=client_rt)
+
+        with col3:
+            # 숨겨진 timeout 버튼 (연습 시행)
+            if st.button("timeout", key=f"practice_timeout_{st.session_state.practice_trial_num}"):
+                record_response(trial, "timeout", is_practice=True, is_timeout=True)
 
     else:
         # Practice 완료
