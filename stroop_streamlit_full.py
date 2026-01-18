@@ -294,10 +294,6 @@ if 'last_was_timeout' not in st.session_state:
     st.session_state.last_was_timeout = False
 if 'showing_break' not in st.session_state:
     st.session_state.showing_break = False
-if 'practice_showing_feedback' not in st.session_state:
-    st.session_state.practice_showing_feedback = False
-if 'practice_feedback_start_time' not in st.session_state:
-    st.session_state.practice_feedback_start_time = None
 
 # 실험 모드 감지 (URL 파라미터)
 if 'experiment_mode' not in st.session_state:
@@ -442,9 +438,7 @@ def record_response(trial, response, is_practice=False, client_rt=None, is_timeo
         st.session_state.practice_responses.append(response_data)
         st.session_state.last_response_correct = accuracy
         st.session_state.practice_trial_num += 1
-        # 연습 시행도 피드백 후 ITI 적용
-        st.session_state.practice_showing_feedback = True
-        st.session_state.practice_feedback_start_time = time.time()
+        # 피드백은 다음 trial 렌더링 시 함께 표시됨 (phase 없음)
     else:
         st.session_state.responses.append(response_data)
         st.session_state.trial_num += 1
@@ -700,60 +694,57 @@ if not st.session_state.practice_completed:
     # Practice Trial 진행
     if st.session_state.practice_trial_num < len(st.session_state.practice_trials):
 
-        # Phase 1: 피드백 표시 (0.8초)
-        if st.session_state.practice_showing_feedback:
-            elapsed = time.time() - st.session_state.practice_feedback_start_time
-
-            if elapsed < 0.8:
-                if st.session_state.last_was_timeout:
-                    feedback_color = "#FFA500"
-                    feedback_text = "너무 느립니다"
-                    feedback_bg = "rgba(255, 165, 0, 0.2)"
-                elif st.session_state.last_response_correct == 1:
-                    feedback_color = "#4CAF50"
-                    feedback_text = "정답"
-                    feedback_bg = "rgba(76, 175, 80, 0.2)"
-                else:
-                    feedback_color = "#f44336"
-                    feedback_text = "오답"
-                    feedback_bg = "rgba(244, 67, 54, 0.2)"
-
-                st.markdown(f'''
-                <div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
-                            background-color: {feedback_bg};
-                            border: 2px solid {feedback_color};
-                            color: {feedback_color};
-                            padding: 15px 30px;
-                            border-radius: 8px;
-                            font-size: 24px;
-                            font-weight: bold;
-                            z-index: 999;">
-                    {feedback_text}
-                </div>
-                ''', unsafe_allow_html=True)
-
-                time.sleep(0.1)
-                st.rerun()
-            else:
-                # 피드백 종료 → 바로 다음 자극 (연습 시행은 ITI 없음)
-                st.session_state.practice_showing_feedback = False
-                st.session_state.practice_feedback_start_time = None
-                st.session_state.last_response_correct = None
-                st.session_state.last_was_timeout = False
-                # 검정 화면 오버레이로 피드백 잔상 제거
-                st.markdown('<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0E1117;z-index:9999;"></div>', unsafe_allow_html=True)
-                time.sleep(0.05)
-                st.rerun()
-
-            st.stop()
-
-        # 자극 표시
         trial = st.session_state.practice_trials.iloc[st.session_state.practice_trial_num]
 
         # 클라이언트 사이드 RT 읽기 (이전 시행에서 저장된 값)
         client_rt = read_client_rt()
         if client_rt is not None:
             st.session_state.pending_client_rt = client_rt
+
+        # 피드백 표시 (이전 trial의 결과) - 자극과 동시에 렌더링
+        if st.session_state.last_response_correct is not None or st.session_state.last_was_timeout:
+            if st.session_state.last_was_timeout:
+                st.markdown('''
+                <div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
+                            background-color: rgba(255, 165, 0, 0.2);
+                            border: 2px solid #FFA500;
+                            color: #FFA500;
+                            padding: 15px 30px;
+                            border-radius: 8px;
+                            font-size: 24px;
+                            font-weight: bold;
+                            z-index: 999;">
+                    너무 느립니다
+                </div>
+                ''', unsafe_allow_html=True)
+            elif st.session_state.last_response_correct == 1:
+                st.markdown('''
+                <div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
+                            background-color: rgba(76, 175, 80, 0.2);
+                            border: 2px solid #4CAF50;
+                            color: #4CAF50;
+                            padding: 15px 30px;
+                            border-radius: 8px;
+                            font-size: 24px;
+                            font-weight: bold;
+                            z-index: 999;">
+                    정답
+                </div>
+                ''', unsafe_allow_html=True)
+            else:
+                st.markdown('''
+                <div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
+                            background-color: rgba(244, 67, 54, 0.2);
+                            border: 2px solid #f44336;
+                            color: #f44336;
+                            padding: 15px 30px;
+                            border-radius: 8px;
+                            font-size: 24px;
+                            font-weight: bold;
+                            z-index: 999;">
+                    오답
+                </div>
+                ''', unsafe_allow_html=True)
 
         # Timeout 체크 (연습 시행도 동일하게 적용)
         if st.session_state.start_time is not None:
