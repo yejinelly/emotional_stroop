@@ -219,8 +219,14 @@ st.markdown("""
 
     /* 지시사항 버튼 중앙 정렬 (columns 밖에 있는 버튼) */
     div[data-testid="stButton"] {
-        display: flex;
-        justify-content: center;
+        display: flex !important;
+        justify-content: center !important;
+        width: 100% !important;
+    }
+
+    /* stButton 내부 버튼도 중앙 */
+    div[data-testid="stButton"] > button {
+        margin: 0 auto !important;
     }
 </style>
 """, unsafe_allow_html=True)
