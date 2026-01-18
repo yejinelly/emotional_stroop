@@ -180,6 +180,63 @@ st.markdown("""
         100% { opacity: 1; }
     }
 
+    /* 연습 시행 피드백: 0.8초 보이고 나서 fadeOut */
+    @keyframes feedbackShow {
+        0% { opacity: 1; }
+        80% { opacity: 1; }
+        100% { opacity: 0; }
+    }
+
+    /* 연습 시행 자극: 피드백 후 (1초 뒤) fadeIn */
+    @keyframes stimulusAfterFeedback {
+        0% { opacity: 0; }
+        100% { opacity: 1; }
+    }
+
+    .practice-feedback {
+        position: fixed;
+        top: 50px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 15px 30px;
+        border-radius: 8px;
+        font-size: 24px;
+        font-weight: bold;
+        z-index: 999;
+        animation: feedbackShow 1s ease-in-out forwards;
+    }
+
+    .practice-feedback-correct {
+        background-color: rgba(76, 175, 80, 0.2);
+        border: 2px solid #4CAF50;
+        color: #4CAF50;
+    }
+
+    .practice-feedback-incorrect {
+        background-color: rgba(244, 67, 54, 0.2);
+        border: 2px solid #f44336;
+        color: #f44336;
+    }
+
+    .practice-feedback-timeout {
+        background-color: rgba(255, 165, 0, 0.2);
+        border: 2px solid #FFA500;
+        color: #FFA500;
+    }
+
+    /* 피드백 후 자극 표시 (1초 delay) */
+    .stimulus-after-feedback {
+        text-align: center;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100%;
+        animation: stimulusAfterFeedback 0.3s ease-in-out 1s forwards;
+        opacity: 0;
+        z-index: 1000;
+    }
+
     /* 지시사항 텍스트 흰색 */
     .element-container p, li {
         color: #FFFFFF !important;
@@ -701,65 +758,25 @@ if not st.session_state.practice_completed:
         if client_rt is not None:
             st.session_state.pending_client_rt = client_rt
 
-        # 피드백 표시 (이전 trial의 결과) - 자극과 동시에 렌더링
-        if st.session_state.last_response_correct is not None or st.session_state.last_was_timeout:
-            if st.session_state.last_was_timeout:
-                st.markdown('''
-                <div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
-                            background-color: rgba(255, 165, 0, 0.2);
-                            border: 2px solid #FFA500;
-                            color: #FFA500;
-                            padding: 15px 30px;
-                            border-radius: 8px;
-                            font-size: 24px;
-                            font-weight: bold;
-                            z-index: 999;">
-                    너무 느립니다
-                </div>
-                ''', unsafe_allow_html=True)
-            elif st.session_state.last_response_correct == 1:
-                st.markdown('''
-                <div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
-                            background-color: rgba(76, 175, 80, 0.2);
-                            border: 2px solid #4CAF50;
-                            color: #4CAF50;
-                            padding: 15px 30px;
-                            border-radius: 8px;
-                            font-size: 24px;
-                            font-weight: bold;
-                            z-index: 999;">
-                    정답
-                </div>
-                ''', unsafe_allow_html=True)
-            else:
-                st.markdown('''
-                <div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
-                            background-color: rgba(244, 67, 54, 0.2);
-                            border: 2px solid #f44336;
-                            color: #f44336;
-                            padding: 15px 30px;
-                            border-radius: 8px;
-                            font-size: 24px;
-                            font-weight: bold;
-                            z-index: 999;">
-                    오답
-                </div>
-                ''', unsafe_allow_html=True)
+        # 첫 시행 여부
+        is_first_trial = st.session_state.practice_trial_num == 0
+        has_feedback = st.session_state.last_response_correct is not None or st.session_state.last_was_timeout
+        color_hex_map = {'red': '#FF0000', 'green': '#00FF00'}
 
         # Timeout 체크 (연습 시행도 동일하게 적용)
         if st.session_state.start_time is not None:
             elapsed = time.time() - st.session_state.start_time
-            # 첫 시행은 fixation 있음 (0.5초), 이후 시행은 즉시 표시 (0.3초)
-            is_first_trial = st.session_state.practice_trial_num == 0
-            timeout_offset = FIXATION_DURATION if is_first_trial else 0.3
+            # 첫 시행은 fixation 있음 (0.5초), 피드백 있으면 1.3초, 없으면 0.3초
+            if is_first_trial:
+                timeout_offset = FIXATION_DURATION
+            elif has_feedback:
+                timeout_offset = 1.3  # 피드백 1초 + 자극 fadeIn 0.3초
+            else:
+                timeout_offset = 0.3
             if elapsed >= MAX_RESPONSE_TIME + timeout_offset:
                 # Timeout 발생
                 record_response(trial, "timeout", is_practice=True, is_timeout=True)
                 st.stop()
-
-        # 첫 시행만 Fixation cross, 이후는 바로 자극 표시
-        color_hex_map = {'red': '#FF0000', 'green': '#00FF00'}
-        is_first_trial = st.session_state.practice_trial_num == 0
 
         if is_first_trial:
             # 첫 시행: Fixation + 자극 (기존 애니메이션)
@@ -772,16 +789,37 @@ if not st.session_state.practice_completed:
                 ''',
                 unsafe_allow_html=True
             )
+        elif has_feedback:
+            # 이후 시행 + 피드백 있음: 피드백 먼저 표시 후 자극 (CSS 애니메이션으로 순서 제어)
+            if st.session_state.last_was_timeout:
+                feedback_class = "practice-feedback practice-feedback-timeout"
+                feedback_text = "너무 느립니다"
+            elif st.session_state.last_response_correct == 1:
+                feedback_class = "practice-feedback practice-feedback-correct"
+                feedback_text = "정답"
+            else:
+                feedback_class = "practice-feedback practice-feedback-incorrect"
+                feedback_text = "오답"
+
+            st.markdown(
+                f'''
+                <div class="{feedback_class}">{feedback_text}</div>
+                <div class="stimulus-after-feedback">
+                    <h1 style="color:{color_hex_map[trial["letterColor"]]}; font-size:80px; font-weight:bold; text-align:center;">{trial["text"]}</h1>
+                </div>
+                ''',
+                unsafe_allow_html=True
+            )
         else:
-            # 이후 시행: Fixation 없이 바로 자극
+            # 이후 시행 + 피드백 없음: 바로 자극 표시
             st.markdown(
                 f'''
                 <div class="stimulus-container-immediate">
                     <h1 style="color:{color_hex_map[trial["letterColor"]]}; font-size:80px; font-weight:bold; text-align:center;">{trial["text"]}</h1>
-            </div>
-            ''',
-            unsafe_allow_html=True
-        )
+                </div>
+                ''',
+                unsafe_allow_html=True
+            )
 
         # 반응시간 측정 시작
         if st.session_state.start_time is None:
@@ -791,14 +829,19 @@ if not st.session_state.practice_completed:
 
         # 키보드 이벤트 리스너 (F, J) - 클라이언트 사이드 RT 측정 + Timeout
         from streamlit.components.v1 import html
-        # 첫 시행은 fixation 500ms, 이후 시행은 300ms
-        stimulus_delay = 500 if is_first_trial else 300
+        # 첫 시행은 fixation 500ms, 피드백 있으면 1300ms (피드백 1000ms + fadeIn 300ms), 그 외 300ms
+        if is_first_trial:
+            stimulus_delay = 500
+        elif has_feedback:
+            stimulus_delay = 1300  # 피드백 1초 + 자극 fadeIn 0.3초
+        else:
+            stimulus_delay = 300
         html(f"""
         <script>
         (function() {{
             const tryNum = {st.session_state.practice_trial_num};
             const MAX_RESPONSE_TIME = {int(MAX_RESPONSE_TIME * 1000)};  // ms
-            const STIMULUS_DELAY = {stimulus_delay};  // ms (첫 시행 500ms, 이후 300ms)
+            const STIMULUS_DELAY = {stimulus_delay};  // ms (첫 시행 500ms, 피드백 있으면 1300ms, 그 외 300ms)
 
             // 반응 버튼 숨기기 (키보드로만 반응)
             function hideResponseButtons() {{
