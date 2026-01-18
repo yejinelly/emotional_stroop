@@ -260,6 +260,8 @@ if 'practice_instructions_shown' not in st.session_state:
     st.session_state.practice_instructions_shown = False
 if 'instruction_page' not in st.session_state:
     st.session_state.instruction_page = 0
+if 'exp_instruction_page' not in st.session_state:
+    st.session_state.exp_instruction_page = 0
 if 'trial_num' not in st.session_state:
     st.session_state.trial_num = 0
 if 'practice_trial_num' not in st.session_state:
@@ -938,27 +940,68 @@ if not st.session_state.practice_completed:
     st.stop()
 
 
-# 3. Experimental Instructions
+# 3. Experimental Instructions (페이지별 표시)
 if not st.session_state.instructions_exp_shown:
-    st.title("📋 본 과제 안내")
-    st.markdown("""
-    ### 연습이 끝났습니다!
+    exp_instruction_pages = [
+        {
+            "lines": [
+                "연습이 끝났습니다!",
+                "이제 <strong>본 과제</strong>를 진행합니다."
+            ],
+            "button": "다음"
+        },
+        {
+            "lines": [
+                "본 과제에서는 <strong>피드백이 제공되지 않습니다.</strong>",
+                "연습과 동일하게 <strong>글자의 색깔만</strong> 판단해주세요."
+            ],
+            "button": "본 과제 시작"
+        }
+    ]
 
-    이제 **본 과제**를 진행합니다.
+    current_page = st.session_state.exp_instruction_page
+    page = exp_instruction_pages[current_page]
+    is_last_page = current_page == len(exp_instruction_pages) - 1
 
-    - **정답/오답 피드백은 제공되지 않습니다.**
-    - 앞의 연습과 동일하게, **글자의 색깔만** 판단해주세요.
-    - 키보드로 색깔을 선택하세요:
-       - 🔴 **빨강**: **F** 키
-       - 🟢 **초록**: **J** 키
+    # 페이지 내용 (중앙 정렬)
+    st.markdown(f'''
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
+                min-height: 50vh; color: white; text-align: center; padding-top: 15vh;">
+        <p style="font-size: 32px; margin-bottom: 20px; line-height: 1.6;">{page["lines"][0]}</p>
+        <p style="font-size: 32px; margin-top: 20px; margin-bottom: 60px; line-height: 1.6;">{page["lines"][1]}</p>
+    </div>
+    ''', unsafe_allow_html=True)
 
-    준비가 되면 아래 버튼을 눌러주세요.
-    """)
+    # 버튼 - 화면 중앙 하단에 고정 (너비 제한)
+    st.markdown(f'''
+    <style>
+    /* 지시사항 버튼 고정 위치 중앙 */
+    div[data-testid="stButton"]:has(button) {{
+        position: fixed !important;
+        bottom: 20% !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        z-index: 1000 !important;
+        width: auto !important;
+        max-width: 200px !important;
+    }}
+    div[data-testid="stButton"]:has(button) button {{
+        width: auto !important;
+        padding: 10px 40px !important;
+    }}
+    </style>
+    ''', unsafe_allow_html=True)
 
-    if st.button("본 과제 시작"):
-        st.session_state.instructions_exp_shown = True
-        # Experimental trials 생성
-        st.session_state.exp_trials = create_exp_trials(n_per_condition=N_PER_CONDITION)
+    clicked = st.button(page["button"], key=f"exp_instruction_btn_{current_page}", type="primary")
+
+    if clicked:
+        if is_last_page:
+            st.session_state.instructions_exp_shown = True
+            st.session_state.exp_instruction_page = 0
+            # Experimental trials 생성
+            st.session_state.exp_trials = create_exp_trials(n_per_condition=N_PER_CONDITION)
+        else:
+            st.session_state.exp_instruction_page += 1
         st.rerun()
 
     st.stop()
