@@ -580,21 +580,21 @@ if not st.session_state.practice_completed:
         instruction_pages = [
             {
                 "lines": [
-                    "화면에 **색깔로 표시된 단어**가 나타납니다.",
-                    "**단어의 의미는 무시**하고, **글자의 색깔만** 판단해주세요."
+                    "화면에 <strong>색깔로 표시된 단어</strong>가 나타납니다.",
+                    "<strong>단어의 의미는 무시</strong>하고, <strong>글자의 색깔만</strong> 판단해주세요."
                 ],
                 "button": "다음"
             },
             {
                 "lines": [
                     "키보드로 색깔을 선택하세요.",
-                    "🔴 **빨강**: **F** 키 &nbsp;&nbsp;&nbsp; 🟢 **초록**: **J** 키"
+                    "🔴 <strong>빨강</strong>: <strong>F</strong> 키 &nbsp;&nbsp;&nbsp; 🟢 <strong>초록</strong>: <strong>J</strong> 키"
                 ],
                 "button": "다음"
             },
             {
                 "lines": [
-                    "먼저 **연습 시행**을 진행합니다.",
+                    "먼저 <strong>연습 시행</strong>을 진행합니다.",
                     "정답/오답 피드백이 제공됩니다."
                 ],
                 "button": "연습 시작"
@@ -611,13 +611,6 @@ if not st.session_state.practice_completed:
                     height: 50vh; color: white; text-align: center;">
             <p style="font-size: 32px; margin-bottom: 20px; line-height: 1.6;">{page["lines"][0]}</p>
             <p style="font-size: 32px; margin-top: 20px; line-height: 1.6;">{page["lines"][1]}</p>
-        </div>
-        ''', unsafe_allow_html=True)
-
-        # 페이지 인디케이터
-        st.markdown(f'''
-        <div style="text-align: center; color: #666; margin-bottom: 20px;">
-            {current_page + 1} / {len(instruction_pages)}
         </div>
         ''', unsafe_allow_html=True)
 
