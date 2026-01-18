@@ -738,6 +738,9 @@ if not st.session_state.practice_completed:
                 st.session_state.practice_feedback_start_time = None
                 st.session_state.last_response_correct = None
                 st.session_state.last_was_timeout = False
+                # 검정 화면 오버레이로 피드백 잔상 제거
+                st.markdown('<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0E1117;z-index:9999;"></div>', unsafe_allow_html=True)
+                time.sleep(0.05)
                 st.rerun()
 
             st.stop()
