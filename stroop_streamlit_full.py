@@ -780,9 +780,21 @@ if not st.session_state.practice_completed:
 
         if is_first_trial:
             # 첫 시행: Fixation + 자극 (기존 애니메이션)
-            # inline style에 opacity: 0 추가하여 CSS 로드 전에도 자극이 보이지 않도록 함
+            # 검정 오버레이로 다른 요소 숨김 + fixation + stimulus
             st.markdown(
                 f'''
+                <style>
+                .black-overlay {{
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    background-color: #000000;
+                    z-index: 998;
+                }}
+                </style>
+                <div class="black-overlay"></div>
                 <div class="fixation-cross">+</div>
                 <div class="stimulus-container" style="opacity: 0;">
                     <h1 style="color:{color_hex_map[trial["letterColor"]]}; font-size:80px; font-weight:bold; text-align:center;">{trial["text"]}</h1>
@@ -1213,9 +1225,21 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
 
     if is_first_trial:
         # 첫 시행: Fixation + 자극 (기존 애니메이션)
-        # inline style에 opacity: 0 추가하여 CSS 로드 전에도 자극이 보이지 않도록 함
+        # 검정 오버레이로 다른 요소 숨김 + fixation + stimulus
         st.markdown(
             f'''
+            <style>
+            .black-overlay {{
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background-color: #000000;
+                z-index: 998;
+            }}
+            </style>
+            <div class="black-overlay"></div>
             <div class="fixation-cross">+</div>
             <div class="stimulus-container" style="opacity: 0;">
                 <h1 style="color:{color_hex_map[trial["letterColor"]]}; font-size:80px; font-weight:bold; text-align:center;">{trial["text"]}</h1>
