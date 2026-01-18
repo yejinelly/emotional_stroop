@@ -606,32 +606,26 @@ if not st.session_state.practice_completed:
         page = instruction_pages[current_page]
         is_last_page = current_page == len(instruction_pages) - 1
 
-        # 페이지 내용 + 버튼 (모두 중앙 정렬)
+        # 페이지 내용 (중앙 정렬)
         st.markdown(f'''
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
-                    height: 70vh; color: white; text-align: center;">
+                    height: 60vh; color: white; text-align: center;">
             <p style="font-size: 32px; margin-bottom: 20px; line-height: 1.6;">{page["lines"][0]}</p>
             <p style="font-size: 32px; margin-top: 20px; line-height: 1.6;">{page["lines"][1]}</p>
         </div>
         ''', unsafe_allow_html=True)
 
-        # 버튼을 화면 중앙 하단에 고정
-        st.markdown('''
-        <style>
-        div[data-testid="stVerticalBlock"] > div:has(button):last-child {
-            position: fixed;
-            bottom: 15%;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 100;
-        }
-        </style>
-        ''', unsafe_allow_html=True)
+        # 버튼 중앙 정렬
+        st.markdown('<div style="display: flex; justify-content: center;">', unsafe_allow_html=True)
+        col1, col2, col3 = st.columns([3, 2, 3])
+        with col2:
+            clicked = st.button(page["button"], key=f"instruction_btn_{current_page}", type="primary", use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        if st.button(page["button"], key=f"instruction_btn_{current_page}", type="primary"):
+        if clicked:
             if is_last_page:
                 st.session_state.practice_instructions_shown = True
-                st.session_state.instruction_page = 0  # 리셋
+                st.session_state.instruction_page = 0
             else:
                 st.session_state.instruction_page += 1
             st.rerun()
