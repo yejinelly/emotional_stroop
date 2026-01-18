@@ -216,6 +216,12 @@ st.markdown("""
     .stInfo p, .stInfo div {
         color: #FFFFFF !important;
     }
+
+    /* 지시사항 버튼 중앙 정렬 (columns 밖에 있는 버튼) */
+    div[data-testid="stButton"] {
+        display: flex;
+        justify-content: center;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -262,6 +268,10 @@ if 'last_was_timeout' not in st.session_state:
     st.session_state.last_was_timeout = False
 if 'showing_break' not in st.session_state:
     st.session_state.showing_break = False
+if 'practice_showing_feedback' not in st.session_state:
+    st.session_state.practice_showing_feedback = False
+if 'practice_feedback_start_time' not in st.session_state:
+    st.session_state.practice_feedback_start_time = None
 
 # 실험 모드 감지 (URL 파라미터)
 if 'experiment_mode' not in st.session_state:
@@ -406,6 +416,9 @@ def record_response(trial, response, is_practice=False, client_rt=None, is_timeo
         st.session_state.practice_responses.append(response_data)
         st.session_state.last_response_correct = accuracy
         st.session_state.practice_trial_num += 1
+        # 피드백 표시 상태 시작 (1초간 피드백만 표시)
+        st.session_state.practice_showing_feedback = True
+        st.session_state.practice_feedback_start_time = time.time()
     else:
         st.session_state.responses.append(response_data)
         st.session_state.trial_num += 1
@@ -626,17 +639,7 @@ if not st.session_state.practice_completed:
         </div>
         ''', unsafe_allow_html=True)
 
-        # 버튼 중앙 정렬 (columns 사용 안 함 - CSS로 중앙 배치)
-        st.markdown('''
-        <style>
-        /* 지시사항 버튼 중앙 정렬 */
-        div[data-testid="stButton"] {
-            display: flex;
-            justify-content: center;
-        }
-        </style>
-        ''', unsafe_allow_html=True)
-
+        # 버튼 (글로벌 CSS로 중앙 정렬됨)
         clicked = st.button(page["button"], key=f"instruction_btn_{current_page}", type="primary")
 
         if clicked:
@@ -651,44 +654,58 @@ if not st.session_state.practice_completed:
 
     # Practice Trial 진행
     if st.session_state.practice_trial_num < len(st.session_state.practice_trials):
+
+        # 피드백 표시 중인 경우 (반응 직후)
+        if st.session_state.practice_showing_feedback:
+            # 피드백 시간 체크 (1초)
+            elapsed = time.time() - st.session_state.practice_feedback_start_time
+            if elapsed >= 1.0:
+                # 피드백 종료 → 다음 자극으로
+                st.session_state.practice_showing_feedback = False
+                st.session_state.practice_feedback_start_time = None
+                st.session_state.last_response_correct = None
+                st.rerun()
+            else:
+                # 피드백만 표시 (자극 없이)
+                if st.session_state.last_response_correct == 1:
+                    st.markdown('''
+                    <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                                background-color: rgba(76, 175, 80, 0.2);
+                                border: 3px solid #4CAF50;
+                                color: #4CAF50;
+                                padding: 30px 60px;
+                                border-radius: 12px;
+                                font-size: 48px;
+                                font-weight: bold;
+                                z-index: 999;">
+                        정답
+                    </div>
+                    ''', unsafe_allow_html=True)
+                else:
+                    st.markdown('''
+                    <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                                background-color: rgba(244, 67, 54, 0.2);
+                                border: 3px solid #f44336;
+                                color: #f44336;
+                                padding: 30px 60px;
+                                border-radius: 12px;
+                                font-size: 48px;
+                                font-weight: bold;
+                                z-index: 999;">
+                        오답
+                    </div>
+                    ''', unsafe_allow_html=True)
+                # 피드백 대기
+                time.sleep(0.1)
+                st.rerun()
+            st.stop()
+
         trial = st.session_state.practice_trials.iloc[st.session_state.practice_trial_num]
 
         # 클라이언트 사이드 RT 읽기 (이전 시행에서 저장된 값)
         client_rt = read_client_rt()
         if client_rt is not None:
             st.session_state.pending_client_rt = client_rt
-
-        # 피드백 표시 (이전 trial) - 박스 안에
-        if st.session_state.last_response_correct is not None:
-            if st.session_state.last_response_correct == 1:
-                st.markdown('''
-                <div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
-                            background-color: rgba(76, 175, 80, 0.2);
-                            border: 2px solid #4CAF50;
-                            color: #4CAF50;
-                            padding: 15px 30px;
-                            border-radius: 8px;
-                            font-size: 24px;
-                            font-weight: bold;
-                            z-index: 999;">
-                    정답
-                </div>
-                ''', unsafe_allow_html=True)
-            else:
-                st.markdown('''
-                <div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
-                            background-color: rgba(244, 67, 54, 0.2);
-                            border: 2px solid #f44336;
-                            color: #f44336;
-                            padding: 15px 30px;
-                            border-radius: 8px;
-                            font-size: 24px;
-                            font-weight: bold;
-                            z-index: 999;">
-                    오답
-                </div>
-                ''', unsafe_allow_html=True)
-            st.markdown("<br>", unsafe_allow_html=True)
 
         # Fixation cross + 자극 제시
         color_hex_map = {'red': '#FF0000', 'green': '#00FF00'}
