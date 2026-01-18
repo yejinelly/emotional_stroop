@@ -780,10 +780,11 @@ if not st.session_state.practice_completed:
 
         if is_first_trial:
             # 첫 시행: Fixation + 자극 (기존 애니메이션)
+            # inline style에 opacity: 0 추가하여 CSS 로드 전에도 자극이 보이지 않도록 함
             st.markdown(
                 f'''
                 <div class="fixation-cross">+</div>
-                <div class="stimulus-container">
+                <div class="stimulus-container" style="opacity: 0;">
                     <h1 style="color:{color_hex_map[trial["letterColor"]]}; font-size:80px; font-weight:bold; text-align:center;">{trial["text"]}</h1>
                 </div>
                 ''',
@@ -1212,10 +1213,11 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
 
     if is_first_trial:
         # 첫 시행: Fixation + 자극 (기존 애니메이션)
+        # inline style에 opacity: 0 추가하여 CSS 로드 전에도 자극이 보이지 않도록 함
         st.markdown(
             f'''
             <div class="fixation-cross">+</div>
-            <div class="stimulus-container">
+            <div class="stimulus-container" style="opacity: 0;">
                 <h1 style="color:{color_hex_map[trial["letterColor"]]}; font-size:80px; font-weight:bold; text-align:center;">{trial["text"]}</h1>
             </div>
             ''',
