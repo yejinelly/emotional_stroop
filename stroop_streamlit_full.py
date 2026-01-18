@@ -139,7 +139,7 @@ st.markdown("""
         z-index: 1000;
     }
 
-    /* Stimulus word - 화면 중앙 고정 */
+    /* Stimulus word - 화면 중앙 고정 (fixation 후 나타남) */
     .stimulus-container {
         text-align: center;
         position: fixed;
@@ -152,12 +152,30 @@ st.markdown("""
         z-index: 1000;
     }
 
+    /* Stimulus word - fixation 없이 바로 나타남 */
+    .stimulus-container-immediate {
+        text-align: center;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 100%;
+        animation: fadeInImmediate 0.3s ease-in-out forwards;
+        opacity: 0;
+        z-index: 1000;
+    }
+
     @keyframes fadeOut {
         0% { opacity: 1; }
         100% { opacity: 0; }
     }
 
     @keyframes fadeIn {
+        0% { opacity: 0; }
+        100% { opacity: 1; }
+    }
+
+    @keyframes fadeInImmediate {
         0% { opacity: 0; }
         100% { opacity: 1; }
     }
@@ -278,6 +296,12 @@ if 'practice_showing_feedback' not in st.session_state:
     st.session_state.practice_showing_feedback = False
 if 'practice_feedback_start_time' not in st.session_state:
     st.session_state.practice_feedback_start_time = None
+if 'practice_showing_iti' not in st.session_state:
+    st.session_state.practice_showing_iti = False
+if 'practice_iti_start_time' not in st.session_state:
+    st.session_state.practice_iti_start_time = None
+if 'practice_iti_duration' not in st.session_state:
+    st.session_state.practice_iti_duration = None
 
 # 실험 모드 감지 (URL 파라미터)
 if 'experiment_mode' not in st.session_state:
@@ -422,6 +446,9 @@ def record_response(trial, response, is_practice=False, client_rt=None, is_timeo
         st.session_state.practice_responses.append(response_data)
         st.session_state.last_response_correct = accuracy
         st.session_state.practice_trial_num += 1
+        # 연습 시행도 피드백 후 ITI 적용
+        st.session_state.practice_showing_feedback = True
+        st.session_state.practice_feedback_start_time = time.time()
     else:
         st.session_state.responses.append(response_data)
         st.session_state.trial_num += 1
@@ -677,15 +704,10 @@ if not st.session_state.practice_completed:
     # Practice Trial 진행
     if st.session_state.practice_trial_num < len(st.session_state.practice_trials):
 
-        # 피드백 표시 중인 경우 (이전 trial 결과) - 피드백만 표시하고 자극은 표시 안함
-        if st.session_state.last_response_correct is not None:
-            # 피드백 시작 시간 기록
-            if st.session_state.practice_feedback_start_time is None:
-                st.session_state.practice_feedback_start_time = time.time()
-
+        # Phase 1: 피드백 표시 (0.8초)
+        if st.session_state.practice_showing_feedback:
             elapsed = time.time() - st.session_state.practice_feedback_start_time
 
-            # 0.8초 동안 피드백만 표시
             if elapsed < 0.8:
                 if st.session_state.last_was_timeout:
                     feedback_color = "#FFA500"
@@ -701,13 +723,13 @@ if not st.session_state.practice_completed:
                     feedback_bg = "rgba(244, 67, 54, 0.2)"
 
                 st.markdown(f'''
-                <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                <div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
                             background-color: {feedback_bg};
                             border: 3px solid {feedback_color};
                             color: {feedback_color};
-                            padding: 30px 60px;
+                            padding: 20px 50px;
                             border-radius: 12px;
-                            font-size: 48px;
+                            font-size: 36px;
                             font-weight: bold;
                             z-index: 9999;">
                     {feedback_text}
@@ -717,14 +739,36 @@ if not st.session_state.practice_completed:
                 time.sleep(0.1)
                 st.rerun()
             else:
-                # 피드백 시간 종료 → 상태 초기화
+                # 피드백 종료 → ITI 시작
+                st.session_state.practice_showing_feedback = False
+                st.session_state.practice_feedback_start_time = None
                 st.session_state.last_response_correct = None
                 st.session_state.last_was_timeout = False
-                st.session_state.practice_feedback_start_time = None
+                # ITI 시작
+                st.session_state.practice_showing_iti = True
+                st.session_state.practice_iti_start_time = time.time()
+                st.session_state.practice_iti_duration = random.uniform(ITI_MIN, ITI_MAX)
                 st.rerun()
 
             st.stop()
 
+        # Phase 2: ITI (검정 화면, 0.8~1.2초)
+        if st.session_state.practice_showing_iti:
+            elapsed = time.time() - st.session_state.practice_iti_start_time
+
+            if elapsed < st.session_state.practice_iti_duration:
+                # 검정 화면 (아무것도 표시 안함)
+                time.sleep(0.1)
+                st.rerun()
+            else:
+                # ITI 종료 → 자극 표시로
+                st.session_state.practice_showing_iti = False
+                st.session_state.practice_iti_start_time = None
+                st.rerun()
+
+            st.stop()
+
+        # Phase 3: 자극 표시
         trial = st.session_state.practice_trials.iloc[st.session_state.practice_trial_num]
 
         # 클라이언트 사이드 RT 읽기 (이전 시행에서 저장된 값)
@@ -735,18 +779,35 @@ if not st.session_state.practice_completed:
         # Timeout 체크 (연습 시행도 동일하게 적용)
         if st.session_state.start_time is not None:
             elapsed = time.time() - st.session_state.start_time
-            if elapsed >= MAX_RESPONSE_TIME + FIXATION_DURATION:
+            # 첫 시행은 fixation 있음 (0.5초), 이후 시행은 즉시 표시 (0.3초)
+            is_first_trial = st.session_state.practice_trial_num == 0
+            timeout_offset = FIXATION_DURATION if is_first_trial else 0.3
+            if elapsed >= MAX_RESPONSE_TIME + timeout_offset:
                 # Timeout 발생
                 record_response(trial, "timeout", is_practice=True, is_timeout=True)
                 st.stop()
 
-        # Fixation cross + 자극 제시
+        # 첫 시행만 Fixation cross, 이후는 바로 자극 표시
         color_hex_map = {'red': '#FF0000', 'green': '#00FF00'}
-        st.markdown(
-            f'''
-            <div class="fixation-cross">+</div>
-            <div class="stimulus-container">
-                <h1 style="color:{color_hex_map[trial["letterColor"]]}; font-size:80px; font-weight:bold; text-align:center;">{trial["text"]}</h1>
+        is_first_trial = st.session_state.practice_trial_num == 0
+
+        if is_first_trial:
+            # 첫 시행: Fixation + 자극 (기존 애니메이션)
+            st.markdown(
+                f'''
+                <div class="fixation-cross">+</div>
+                <div class="stimulus-container">
+                    <h1 style="color:{color_hex_map[trial["letterColor"]]}; font-size:80px; font-weight:bold; text-align:center;">{trial["text"]}</h1>
+                </div>
+                ''',
+                unsafe_allow_html=True
+            )
+        else:
+            # 이후 시행: Fixation 없이 바로 자극
+            st.markdown(
+                f'''
+                <div class="stimulus-container-immediate">
+                    <h1 style="color:{color_hex_map[trial["letterColor"]]}; font-size:80px; font-weight:bold; text-align:center;">{trial["text"]}</h1>
             </div>
             ''',
             unsafe_allow_html=True
@@ -760,11 +821,14 @@ if not st.session_state.practice_completed:
 
         # 키보드 이벤트 리스너 (F, J) - 클라이언트 사이드 RT 측정 + Timeout
         from streamlit.components.v1 import html
+        # 첫 시행은 fixation 500ms, 이후 시행은 300ms
+        stimulus_delay = 500 if is_first_trial else 300
         html(f"""
         <script>
         (function() {{
             const tryNum = {st.session_state.practice_trial_num};
             const MAX_RESPONSE_TIME = {int(MAX_RESPONSE_TIME * 1000)};  // ms
+            const STIMULUS_DELAY = {stimulus_delay};  // ms (첫 시행 500ms, 이후 300ms)
 
             // 반응 버튼 숨기기 (키보드로만 반응)
             function hideResponseButtons() {{
@@ -785,10 +849,9 @@ if not st.session_state.practice_completed:
             }}
             setTimeout(hideResponseButtons, 50);
 
-            // 자극 표시 시점 기록 (CSS 애니메이션 0.5초 후 = 실제 자극 표시 시점)
-            const FIXATION_DURATION = 500;  // ms
-            window.stimulusShownTime = performance.now() + FIXATION_DURATION;
-            console.log('Practice stimulus will be shown at:', window.stimulusShownTime);
+            // 자극 표시 시점 기록 (첫 시행: fixation 0.5초 후, 이후: 0.3초 후)
+            window.stimulusShownTime = performance.now() + STIMULUS_DELAY;
+            console.log('Practice stimulus will be shown at:', window.stimulusShownTime, '(delay:', STIMULUS_DELAY, 'ms)');
 
             // Timeout 플래그
             window.stroopResponseMade = false;
@@ -814,7 +877,7 @@ if not st.session_state.practice_completed:
                         }}
                     }});
                 }}
-            }}, FIXATION_DURATION + MAX_RESPONSE_TIME);
+            }}, STIMULUS_DELAY + MAX_RESPONSE_TIME);
 
             // Define new handler
             window.stroopKeyHandler = function(event) {{
@@ -1031,25 +1094,42 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
     if client_rt is not None:
         st.session_state.pending_client_rt = client_rt
 
+    # 첫 시행 여부 (블록 내 첫 시행)
+    is_first_trial = st.session_state.trial_num == 0
+
     # Timeout 체크 (서버 사이드)
     if st.session_state.start_time is not None:
         elapsed = time.time() - st.session_state.start_time
-        if elapsed >= MAX_RESPONSE_TIME + FIXATION_DURATION:
+        timeout_offset = FIXATION_DURATION if is_first_trial else 0.3
+        if elapsed >= MAX_RESPONSE_TIME + timeout_offset:
             # Timeout 발생
             record_response(trial, "timeout", is_timeout=True)
             st.stop()
 
-    # Fixation cross + 자극 제시
+    # 첫 시행만 Fixation cross, 이후는 바로 자극 표시
     color_hex_map = {'red': '#FF0000', 'green': '#00FF00'}
-    st.markdown(
-        f'''
-        <div class="fixation-cross">+</div>
-        <div class="stimulus-container">
-            <h1 style="color:{color_hex_map[trial["letterColor"]]}; font-size:80px; font-weight:bold; text-align:center;">{trial["text"]}</h1>
-        </div>
-        ''',
-        unsafe_allow_html=True
-    )
+
+    if is_first_trial:
+        # 첫 시행: Fixation + 자극 (기존 애니메이션)
+        st.markdown(
+            f'''
+            <div class="fixation-cross">+</div>
+            <div class="stimulus-container">
+                <h1 style="color:{color_hex_map[trial["letterColor"]]}; font-size:80px; font-weight:bold; text-align:center;">{trial["text"]}</h1>
+            </div>
+            ''',
+            unsafe_allow_html=True
+        )
+    else:
+        # 이후 시행: Fixation 없이 바로 자극
+        st.markdown(
+            f'''
+            <div class="stimulus-container-immediate">
+                <h1 style="color:{color_hex_map[trial["letterColor"]]}; font-size:80px; font-weight:bold; text-align:center;">{trial["text"]}</h1>
+            </div>
+            ''',
+            unsafe_allow_html=True
+        )
 
     # 반응시간 측정 시작
     if st.session_state.start_time is None:
@@ -1059,16 +1139,18 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
 
     # 키보드 이벤트 리스너 (F, J) - 클라이언트 사이드 RT 측정 + Timeout
     from streamlit.components.v1 import html
+    # 첫 시행은 fixation 500ms, 이후 시행은 300ms
+    stimulus_delay = 500 if is_first_trial else 300
     html(f"""
     <script>
     (function() {{
         const tryNum = {st.session_state.trial_num};
         const MAX_RESPONSE_TIME = {int(MAX_RESPONSE_TIME * 1000)};  // ms
+        const STIMULUS_DELAY = {stimulus_delay};  // ms (첫 시행 500ms, 이후 300ms)
 
-        // 자극 표시 시점 기록 (CSS 애니메이션 0.5초 후 = 실제 자극 표시 시점)
-        const FIXATION_DURATION = 500;  // ms
-        window.stimulusShownTime = performance.now() + FIXATION_DURATION;
-        console.log('Stimulus will be shown at:', window.stimulusShownTime);
+        // 자극 표시 시점 기록 (첫 시행: fixation 0.5초 후, 이후: 0.3초 후)
+        window.stimulusShownTime = performance.now() + STIMULUS_DELAY;
+        console.log('Stimulus will be shown at:', window.stimulusShownTime, '(delay:', STIMULUS_DELAY, 'ms)');
 
         // Timeout 플래그
         window.stroopResponseMade = false;
@@ -1081,7 +1163,7 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
             clearTimeout(window.stroopTimeoutTimer);
         }}
 
-        // Timeout 핸들러 - 2초 후 자동으로 timeout 버튼 클릭
+        // Timeout 핸들러 - 3초 후 자동으로 timeout 버튼 클릭
         window.stroopTimeoutTimer = setTimeout(function() {{
             if (!window.stroopResponseMade) {{
                 console.log('Timeout! No response within', MAX_RESPONSE_TIME, 'ms');
@@ -1096,7 +1178,7 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
                     }}
                 }});
             }}
-        }}, FIXATION_DURATION + MAX_RESPONSE_TIME);
+        }}, STIMULUS_DELAY + MAX_RESPONSE_TIME);
 
         // Define new handler
         window.stroopKeyHandler = function(event) {{

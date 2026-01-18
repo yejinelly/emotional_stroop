@@ -24,10 +24,19 @@
 
 | 파라미터 | 값 | 설명 |
 |---------|-----|------|
-| Fixation | 0.5초 | + 표시 |
+| Fixation | 0.5초 | + 표시 (첫 시행에만) |
 | Max Response Time | 3초 | 초과 시 timeout 처리 |
-| ITI | 0.8~1.2초 | Jittered inter-trial interval |
-| Timeout 피드백 | "너무 느립니다" | 응답 제한 시간 초과 시 |
+| Feedback | 0.8초 | 연습 시행만 (정답/오답/너무 느립니다) |
+| ITI | 0.8~1.2초 | Jittered inter-trial interval (검정 화면) |
+
+### Trial 흐름
+
+**연습 시행**: 반응 → 피드백(0.8초) → ITI(검정 화면) → 다음 자극
+
+**본 시행**: 반응 → ITI(검정 화면) → 다음 자극
+
+- Fixation(+)은 각 시행의 **첫 trial에만** 표시
+- ITI는 피드백 종료(연습) 또는 반응 직후(본 시행)부터 다음 자극 시작까지의 검정 화면 구간
 
 ## 수집 데이터
 
