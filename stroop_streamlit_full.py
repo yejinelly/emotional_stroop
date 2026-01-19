@@ -975,6 +975,18 @@ if not st.session_state.practice_completed:
                     if (targetBtn) {{
                         console.log('Practice clicking', color, 'button');
                         targetBtn.click();
+
+                        // Backup: 클릭 후 500ms 내에 페이지가 안 바뀌면 timeout 버튼 클릭
+                        setTimeout(() => {{
+                            console.error('Practice button click did not trigger page change! Clicking timeout as backup.');
+                            const backupTimeoutBtn = [...parent.document.querySelectorAll('button')].find(btn => btn.textContent === 'timeout');
+                            if (backupTimeoutBtn) {{
+                                backupTimeoutBtn.click();
+                            }} else {{
+                                console.error('Backup timeout button not found! Forcing page reload.');
+                                parent.location.reload();
+                            }}
+                        }}, 500);
                     }} else if (retryCount < 3) {{
                         console.log('Practice button not found, retrying... (attempt', retryCount + 1, ')');
                         setTimeout(() => findAndClickButton(color, retryCount + 1), 100);
@@ -1477,6 +1489,18 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
                 if (targetBtn) {{
                     console.log('Clicking', color, 'button');
                     targetBtn.click();
+
+                    // Backup: 클릭 후 500ms 내에 페이지가 안 바뀌면 timeout 버튼 클릭
+                    setTimeout(() => {{
+                        console.error('Button click did not trigger page change! Clicking timeout as backup.');
+                        const backupTimeoutBtn = [...parent.document.querySelectorAll('button')].find(btn => btn.textContent === 'timeout');
+                        if (backupTimeoutBtn) {{
+                            backupTimeoutBtn.click();
+                        }} else {{
+                            console.error('Backup timeout button not found! Forcing page reload.');
+                            parent.location.reload();
+                        }}
+                    }}, 500);
                 }} else if (retryCount < 3) {{
                     console.log('Button not found, retrying... (attempt', retryCount + 1, ')');
                     setTimeout(() => findAndClickButton(color, retryCount + 1), 100);
