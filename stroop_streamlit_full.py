@@ -1128,11 +1128,13 @@ if st.session_state.showing_practice_redo:
     ''', unsafe_allow_html=True)
 
     if st.button("다시 연습하기", key=f"redo_practice_{st.session_state.practice_attempt}", type="primary"):
-        # 연습 초기화
+        # 연습 초기화 (지시사항부터 다시)
         st.session_state.practice_trial_num = 0
         st.session_state.practice_responses = []
         st.session_state.practice_trials = create_practice_trials(n_trials=N_PRACTICE)
         st.session_state.showing_practice_redo = False
+        st.session_state.practice_instructions_shown = False  # 지시사항부터 다시
+        st.session_state.practice_started = False
         st.session_state.practice_attempt += 1
         st.session_state.last_response_correct = None
         st.session_state.last_was_timeout = False
