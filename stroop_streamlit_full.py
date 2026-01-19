@@ -1086,10 +1086,21 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
                 st.session_state.last_was_timeout = False
                 st.rerun()
 
-            # 1초 후 자동 클릭
+            # 버튼 숨기기 + 1초 후 자동 클릭
             components.html("""
             <script>
             (function() {
+                // 버튼 즉시 숨기기
+                const hideBtn = () => {
+                    const btn = [...parent.document.querySelectorAll('button')].find(b => b.textContent === 'practice_complete');
+                    if (btn) {
+                        btn.style.display = 'none';
+                    }
+                };
+                hideBtn();
+                setTimeout(hideBtn, 50);  // 렌더링 후에도 숨기기
+
+                // 1초 후 클릭
                 setTimeout(() => {
                     const btn = [...parent.document.querySelectorAll('button')].find(b => b.textContent === 'practice_complete');
                     if (btn) {
@@ -1126,10 +1137,21 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
                 st.session_state.last_was_timeout = False
                 st.rerun()
 
-            # JavaScript로 1초 후 자동 클릭
+            # 버튼 숨기기 + 1초 후 자동 클릭
             components.html("""
             <script>
             (function() {
+                // 버튼 즉시 숨기기
+                const hideBtn = () => {
+                    const btn = [...parent.document.querySelectorAll('button')].find(b => b.textContent === 'auto_complete');
+                    if (btn) {
+                        btn.style.display = 'none';
+                    }
+                };
+                hideBtn();
+                setTimeout(hideBtn, 50);
+
+                // 1초 후 클릭
                 setTimeout(() => {
                     const btn = [...parent.document.querySelectorAll('button')].find(b => b.textContent === 'auto_complete');
                     if (btn) {
