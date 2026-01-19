@@ -933,6 +933,12 @@ if not st.session_state.practice_completed:
                     return;
                 }}
 
+                // 이미 응답한 경우 무시 (빠른 더블 클릭 방지)
+                if (window.stroopResponseMade) {{
+                    console.log('Response already made, ignoring key:', code);
+                    return;
+                }}
+
                 event.preventDefault();
                 event.stopPropagation();
 
@@ -1407,6 +1413,12 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
 
             // Use event.code to detect physical keys (works with Korean/English keyboard)
             if (code !== 'KeyF' && code !== 'KeyJ') {{
+                return;
+            }}
+
+            // 이미 응답한 경우 무시 (빠른 더블 클릭 방지)
+            if (window.stroopResponseMade) {{
+                console.log('Response already made, ignoring key:', code);
                 return;
             }}
 
