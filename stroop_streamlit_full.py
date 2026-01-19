@@ -351,6 +351,8 @@ if 'last_was_timeout' not in st.session_state:
     st.session_state.last_was_timeout = False
 if 'showing_break' not in st.session_state:
     st.session_state.showing_break = False
+if 'breaks_shown' not in st.session_state:
+    st.session_state.breaks_shown = set()  # 이미 휴식 화면을 보여준 블록 번호
 
 # 실험 모드 감지 (URL 파라미터)
 if 'experiment_mode' not in st.session_state:
@@ -1144,10 +1146,12 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
 
     # 블록 간 휴식 체크 (full 모드에서만 적용)
     current_block = st.session_state.trial_num // TRIALS_PER_BLOCK + 1
+    completed_block = st.session_state.trial_num // TRIALS_PER_BLOCK
     is_block_start = (st.session_state.experiment_mode == "full" and
                       st.session_state.trial_num > 0 and
                       st.session_state.trial_num % TRIALS_PER_BLOCK == 0 and
-                      st.session_state.trial_num < len(st.session_state.exp_trials))
+                      st.session_state.trial_num < len(st.session_state.exp_trials) and
+                      completed_block not in st.session_state.breaks_shown)  # 아직 안 보여준 블록만
 
     # 블록 시작 시 휴식 화면 표시
     if is_block_start and not st.session_state.showing_break:
@@ -1156,7 +1160,6 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
 
     # 휴식 화면 표시 중
     if st.session_state.showing_break:
-        completed_block = st.session_state.trial_num // TRIALS_PER_BLOCK
         st.markdown(f'''
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                     height: 60vh; color: white; text-align: center;">
@@ -1184,7 +1187,11 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
         </style>
         ''', unsafe_allow_html=True)
 
-        if st.button("다음 블록 시작", key="continue_block", type="primary"):
+        if st.button("다음 블록 시작", key=f"continue_block_{completed_block}", type="primary"):
+            # set을 명시적으로 재할당 (Streamlit이 변경 감지하도록)
+            new_breaks = st.session_state.breaks_shown.copy()
+            new_breaks.add(completed_block)
+            st.session_state.breaks_shown = new_breaks
             st.session_state.showing_break = False
             st.rerun()
         st.stop()
