@@ -663,7 +663,7 @@ if not st.session_state.task_started:
     if st.session_state.experiment_mode == "pilot":
         st.caption(f"🧪 Pilot 모드: {TOTAL_TRIALS} trials ({N_PER_CONDITION} × 3 conditions)")
     else:
-        st.caption(f"📊 Full 모드: {TOTAL_TRIALS} trials ({N_PER_CONDITION} × 3 conditions, {NUM_BLOCKS} blocks)")
+        st.caption("📊 Full 모드")
 
     st.info("⚠️ **시작 전**: 전체화면 모드로 전환해주세요  \n(Mac: Cmd+Ctrl+F, Windows: F11)")
 
