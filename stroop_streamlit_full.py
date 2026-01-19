@@ -1099,22 +1099,45 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
             </script>
             """, height=0)
         else:
-            # 피드백 없이 바로 완료 처리
-            practice_responses = st.session_state.practice_responses
-            if len(practice_responses) > 0:
-                correct_count = sum(1 for r in practice_responses if r['accuracy'] == 1)
-                practice_accuracy = correct_count / len(practice_responses)
-            else:
-                practice_accuracy = 0
+            # 피드백 없이 도달한 경우 - 마지막 피드백 버튼이 클릭되길 기다림
+            # (정상적으로는 has_feedback이 True여야 하지만, 엣지 케이스 방지)
+            st.markdown('''
+            <div style="display: flex; align-items: center; justify-content: center; height: 60vh;">
+                <p style="color: white; font-size: 24px;">잠시만 기다려 주세요...</p>
+            </div>
+            ''', unsafe_allow_html=True)
 
-            if practice_accuracy < 0.5:
-                st.session_state.showing_practice_redo = True
-            else:
-                st.session_state.practice_completed = True
+            # 1초 후 자동으로 완료 처리
+            if st.button("auto_complete", key="auto_complete_btn"):
+                practice_responses = st.session_state.practice_responses
+                if len(practice_responses) > 0:
+                    correct_count = sum(1 for r in practice_responses if r['accuracy'] == 1)
+                    practice_accuracy = correct_count / len(practice_responses)
+                else:
+                    practice_accuracy = 0
 
-            st.session_state.last_response_correct = None
-            st.session_state.last_was_timeout = False
-            st.rerun()
+                if practice_accuracy < 0.5:
+                    st.session_state.showing_practice_redo = True
+                else:
+                    st.session_state.practice_completed = True
+
+                st.session_state.last_response_correct = None
+                st.session_state.last_was_timeout = False
+                st.rerun()
+
+            # JavaScript로 1초 후 자동 클릭
+            components.html("""
+            <script>
+            (function() {
+                setTimeout(() => {
+                    const btn = [...parent.document.querySelectorAll('button')].find(b => b.textContent === 'auto_complete');
+                    if (btn) {
+                        btn.click();
+                    }
+                }, 1000);
+            })();
+            </script>
+            """, height=0)
 
     st.stop()
 
