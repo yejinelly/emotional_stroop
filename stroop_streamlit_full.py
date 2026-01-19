@@ -682,7 +682,7 @@ if not st.session_state.task_started:
 
 
 # 2. Practice Instructions (여러 화면으로 분리)
-if not st.session_state.practice_completed:
+if not st.session_state.practice_completed and not st.session_state.showing_practice_redo:
     if not st.session_state.practice_instructions_shown:
         # 지시사항 페이지 정의 (2줄씩)
         instruction_pages = [
