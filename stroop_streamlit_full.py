@@ -1035,7 +1035,7 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
                 record_response(trial, "timeout", is_practice=True, is_timeout=True)
 
     else:
-        # 마지막 trial 피드백 표시 (has_feedback이 True일 때)
+        # 마지막 trial 피드백 표시 후 자동 진행
         has_feedback = st.session_state.last_response_correct is not None or st.session_state.last_was_timeout
 
         if has_feedback:
@@ -1065,26 +1065,53 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
                 unsafe_allow_html=True
             )
 
-            # 1초 후 practice 완료 체크
-            time.sleep(1.0)
+            # 숨겨진 버튼 + 1초 후 JavaScript로 자동 클릭 (time.sleep 대신)
+            if st.button("practice_complete", key="practice_complete_btn"):
+                # Practice 정확도 계산
+                practice_responses = st.session_state.practice_responses
+                if len(practice_responses) > 0:
+                    correct_count = sum(1 for r in practice_responses if r['accuracy'] == 1)
+                    practice_accuracy = correct_count / len(practice_responses)
+                else:
+                    practice_accuracy = 0
 
-        # Practice 정확도 계산
-        practice_responses = st.session_state.practice_responses
-        if len(practice_responses) > 0:
-            correct_count = sum(1 for r in practice_responses if r['accuracy'] == 1)
-            practice_accuracy = correct_count / len(practice_responses)
-        else:
-            practice_accuracy = 0
+                # 정확도 50% 미만이면 다시 연습
+                if practice_accuracy < 0.5:
+                    st.session_state.showing_practice_redo = True
+                else:
+                    st.session_state.practice_completed = True
 
-        # 정확도 50% 미만이면 다시 연습
-        if practice_accuracy < 0.5:
-            st.session_state.showing_practice_redo = True
-            st.session_state.last_response_correct = None
-            st.session_state.last_was_timeout = False
-            st.rerun()
+                st.session_state.last_response_correct = None
+                st.session_state.last_was_timeout = False
+                st.rerun()
+
+            # 1초 후 자동 클릭
+            components.html("""
+            <script>
+            (function() {
+                setTimeout(() => {
+                    const btn = [...parent.document.querySelectorAll('button')].find(b => b.textContent === 'practice_complete');
+                    if (btn) {
+                        btn.click();
+                    }
+                }, 1000);
+            })();
+            </script>
+            """, height=0)
         else:
-            # Practice 완료
-            st.session_state.practice_completed = True
+            # 피드백 없이 바로 완료 처리
+            practice_responses = st.session_state.practice_responses
+            if len(practice_responses) > 0:
+                correct_count = sum(1 for r in practice_responses if r['accuracy'] == 1)
+                practice_accuracy = correct_count / len(practice_responses)
+            else:
+                practice_accuracy = 0
+
+            if practice_accuracy < 0.5:
+                st.session_state.showing_practice_redo = True
+            else:
+                st.session_state.practice_completed = True
+
             st.session_state.last_response_correct = None
             st.session_state.last_was_timeout = False
             st.rerun()
@@ -1094,17 +1121,11 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
 
 # 2.5 Practice Redo 화면 (정확도 50% 미만)
 if st.session_state.showing_practice_redo:
-    # 정확도 계산
-    practice_responses = st.session_state.practice_responses
-    correct_count = sum(1 for r in practice_responses if r['accuracy'] == 1)
-    practice_accuracy = correct_count / len(practice_responses) * 100
-
-    st.markdown(f'''
+    st.markdown('''
     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                 height: 60vh; color: white; text-align: center;">
-        <h1 style="font-size: 40px; margin-bottom: 30px; color: #FFA500;">연습 정확도: {practice_accuracy:.0f}%</h1>
-        <p style="font-size: 28px; margin-bottom: 20px;">정확도가 50% 미만입니다.</p>
-        <p style="font-size: 28px; margin-bottom: 50px;">다시 연습을 진행해 주세요.</p>
+        <p style="font-size: 32px; margin-bottom: 30px;">정답률이 낮아</p>
+        <p style="font-size: 32px; margin-bottom: 50px;">연습을 다시 시행합니다.</p>
     </div>
     ''', unsafe_allow_html=True)
 
@@ -1131,7 +1152,7 @@ if st.session_state.showing_practice_redo:
         # 연습 초기화 (지시사항부터 다시)
         st.session_state.practice_trial_num = 0
         st.session_state.practice_responses = []
-        st.session_state.practice_trials = create_practice_trials(n_trials=N_PRACTICE)
+        st.session_state.practice_trials = create_practice_trials()
         st.session_state.showing_practice_redo = False
         st.session_state.practice_instructions_shown = False  # 지시사항부터 다시
         st.session_state.practice_started = False
