@@ -956,18 +956,19 @@ if not st.session_state.practice_completed:
                 // RT를 localStorage에 저장 (Python에서 읽기 위함)
                 localStorage.setItem('stroopClientRT', clientRT.toString());
 
-                // Find and click buttons (with retry)
+                // Find and click buttons (with retry and fallback to timeout)
                 function findAndClickButton(color, retryCount) {{
                     const allButtons = parent.document.querySelectorAll('button');
-                    let redBtn = null, greenBtn = null;
+                    let redBtn = null, greenBtn = null, timeoutBtn = null;
 
                     allButtons.forEach((btn) => {{
                         const text = btn.textContent || btn.innerText;
                         if (text.includes('🔴') || text.includes('빨강')) redBtn = btn;
                         if (text.includes('🟢') || text.includes('초록')) greenBtn = btn;
+                        if (text === 'timeout') timeoutBtn = btn;
                     }});
 
-                    console.log('Practice buttons found - Red:', !!redBtn, 'Green:', !!greenBtn, 'Total buttons:', allButtons.length);
+                    console.log('Practice buttons found - Red:', !!redBtn, 'Green:', !!greenBtn, 'Timeout:', !!timeoutBtn, 'Total:', allButtons.length);
 
                     let targetBtn = (color === 'red') ? redBtn : greenBtn;
 
@@ -978,7 +979,14 @@ if not st.session_state.practice_completed:
                         console.log('Practice button not found, retrying... (attempt', retryCount + 1, ')');
                         setTimeout(() => findAndClickButton(color, retryCount + 1), 100);
                     }} else {{
-                        console.error('Practice FAILED to find button after 3 retries!');
+                        // Fallback: 버튼 못 찾으면 timeout 버튼 클릭해서 다음으로 넘어감
+                        console.error('Practice FAILED to find button after 3 retries! Clicking timeout as fallback.');
+                        if (timeoutBtn) {{
+                            timeoutBtn.click();
+                        }} else {{
+                            console.error('Timeout button also not found! Forcing page reload.');
+                            parent.location.reload();
+                        }}
                     }}
                 }}
 
@@ -1450,18 +1458,19 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
             // RT를 localStorage에 저장 (Python에서 읽기 위함)
             localStorage.setItem('stroopClientRT', clientRT.toString());
 
-            // Find and click buttons (with retry)
+            // Find and click buttons (with retry and fallback to timeout)
             function findAndClickButton(color, retryCount) {{
                 const allButtons = parent.document.querySelectorAll('button');
-                let redBtn = null, greenBtn = null;
+                let redBtn = null, greenBtn = null, timeoutBtn = null;
 
                 allButtons.forEach((btn) => {{
                     const text = btn.textContent || btn.innerText;
                     if (text.includes('🔴') || text.includes('빨강')) redBtn = btn;
                     if (text.includes('🟢') || text.includes('초록')) greenBtn = btn;
+                    if (text === 'timeout') timeoutBtn = btn;
                 }});
 
-                console.log('Buttons found - Red:', !!redBtn, 'Green:', !!greenBtn, 'Total buttons:', allButtons.length);
+                console.log('Buttons found - Red:', !!redBtn, 'Green:', !!greenBtn, 'Timeout:', !!timeoutBtn, 'Total:', allButtons.length);
 
                 let targetBtn = (color === 'red') ? redBtn : greenBtn;
 
@@ -1472,7 +1481,14 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
                     console.log('Button not found, retrying... (attempt', retryCount + 1, ')');
                     setTimeout(() => findAndClickButton(color, retryCount + 1), 100);
                 }} else {{
-                    console.error('FAILED to find button after 3 retries!');
+                    // Fallback: 버튼 못 찾으면 timeout 버튼 클릭해서 다음으로 넘어감
+                    console.error('FAILED to find button after 3 retries! Clicking timeout as fallback.');
+                    if (timeoutBtn) {{
+                        timeoutBtn.click();
+                    }} else {{
+                        console.error('Timeout button also not found! Forcing page reload.');
+                        parent.location.reload();
+                    }}
                 }}
             }}
 
