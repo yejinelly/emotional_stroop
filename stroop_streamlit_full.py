@@ -353,6 +353,10 @@ if 'showing_break' not in st.session_state:
     st.session_state.showing_break = False
 if 'breaks_shown' not in st.session_state:
     st.session_state.breaks_shown = set()  # 이미 휴식 화면을 보여준 블록 번호
+if 'showing_practice_redo' not in st.session_state:
+    st.session_state.showing_practice_redo = False
+if 'practice_attempt' not in st.session_state:
+    st.session_state.practice_attempt = 1  # 연습 시도 횟수
 
 # 실험 모드 감지 (URL 파라미터)
 if 'experiment_mode' not in st.session_state:
@@ -1024,12 +1028,76 @@ if not st.session_state.practice_completed:
                 unsafe_allow_html=True
             )
 
-            # 1초 후 practice 완료로 전환
+            # 1초 후 practice 완료 체크
             time.sleep(1.0)
 
-        # Practice 완료
-        st.session_state.practice_completed = True
-        st.session_state.last_response_correct = None  # 초기화
+        # Practice 정확도 계산
+        practice_responses = st.session_state.practice_responses
+        if len(practice_responses) > 0:
+            correct_count = sum(1 for r in practice_responses if r['accuracy'] == 1)
+            practice_accuracy = correct_count / len(practice_responses)
+        else:
+            practice_accuracy = 0
+
+        # 정확도 50% 미만이면 다시 연습
+        if practice_accuracy < 0.5:
+            st.session_state.showing_practice_redo = True
+            st.session_state.last_response_correct = None
+            st.session_state.last_was_timeout = False
+            st.rerun()
+        else:
+            # Practice 완료
+            st.session_state.practice_completed = True
+            st.session_state.last_response_correct = None
+            st.session_state.last_was_timeout = False
+            st.rerun()
+
+    st.stop()
+
+
+# 2.5 Practice Redo 화면 (정확도 50% 미만)
+if st.session_state.showing_practice_redo:
+    # 정확도 계산
+    practice_responses = st.session_state.practice_responses
+    correct_count = sum(1 for r in practice_responses if r['accuracy'] == 1)
+    practice_accuracy = correct_count / len(practice_responses) * 100
+
+    st.markdown(f'''
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
+                height: 60vh; color: white; text-align: center;">
+        <h1 style="font-size: 40px; margin-bottom: 30px; color: #FFA500;">연습 정확도: {practice_accuracy:.0f}%</h1>
+        <p style="font-size: 28px; margin-bottom: 20px;">정확도가 50% 미만입니다.</p>
+        <p style="font-size: 28px; margin-bottom: 50px;">다시 연습을 진행해 주세요.</p>
+    </div>
+    ''', unsafe_allow_html=True)
+
+    # 버튼 CSS
+    st.markdown('''
+    <style>
+    div[data-testid="stButton"]:has(button) {
+        position: fixed !important;
+        bottom: 20% !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        z-index: 1000 !important;
+        width: auto !important;
+        max-width: 200px !important;
+    }
+    div[data-testid="stButton"]:has(button) button {
+        width: auto !important;
+        padding: 10px 40px !important;
+    }
+    </style>
+    ''', unsafe_allow_html=True)
+
+    if st.button("다시 연습하기", key=f"redo_practice_{st.session_state.practice_attempt}", type="primary"):
+        # 연습 초기화
+        st.session_state.practice_trial_num = 0
+        st.session_state.practice_responses = []
+        st.session_state.practice_trials = create_practice_trials(n_trials=N_PRACTICE)
+        st.session_state.showing_practice_redo = False
+        st.session_state.practice_attempt += 1
+        st.session_state.last_response_correct = None
         st.session_state.last_was_timeout = False
         st.rerun()
 
