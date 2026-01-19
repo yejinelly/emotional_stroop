@@ -956,24 +956,35 @@ if not st.session_state.practice_completed:
                 // RT를 localStorage에 저장 (Python에서 읽기 위함)
                 localStorage.setItem('stroopClientRT', clientRT.toString());
 
-                // Find and click buttons
-                const allButtons = parent.document.querySelectorAll('button');
-                let redBtn = null, greenBtn = null;
+                // Find and click buttons (with retry)
+                function findAndClickButton(color, retryCount) {{
+                    const allButtons = parent.document.querySelectorAll('button');
+                    let redBtn = null, greenBtn = null;
 
-                allButtons.forEach((btn) => {{
-                    const text = btn.textContent || btn.innerText;
-                    if (text.includes('🔴') || text.includes('빨강')) redBtn = btn;
-                    else if (text.includes('🟢') || text.includes('초록')) greenBtn = btn;
-                }});
+                    allButtons.forEach((btn) => {{
+                        const text = btn.textContent || btn.innerText;
+                        if (text.includes('🔴') || text.includes('빨강')) redBtn = btn;
+                        if (text.includes('🟢') || text.includes('초록')) greenBtn = btn;
+                    }});
+
+                    console.log('Practice buttons found - Red:', !!redBtn, 'Green:', !!greenBtn, 'Total buttons:', allButtons.length);
+
+                    let targetBtn = (color === 'red') ? redBtn : greenBtn;
+
+                    if (targetBtn) {{
+                        console.log('Practice clicking', color, 'button');
+                        targetBtn.click();
+                    }} else if (retryCount < 3) {{
+                        console.log('Practice button not found, retrying... (attempt', retryCount + 1, ')');
+                        setTimeout(() => findAndClickButton(color, retryCount + 1), 100);
+                    }} else {{
+                        console.error('Practice FAILED to find button after 3 retries!');
+                    }}
+                }}
 
                 // Click the appropriate button based on physical key code
-                let targetBtn = null;
-                if (code === 'KeyF') targetBtn = redBtn;
-                else if (code === 'KeyJ') targetBtn = greenBtn;
-
-                if (targetBtn) {{
-                    targetBtn.click();
-                }}
+                const color = (code === 'KeyF') ? 'red' : 'green';
+                findAndClickButton(color, 0);
             }};
 
             // Add the new listener
@@ -1439,24 +1450,35 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
             // RT를 localStorage에 저장 (Python에서 읽기 위함)
             localStorage.setItem('stroopClientRT', clientRT.toString());
 
-            // Find and click buttons
-            const allButtons = parent.document.querySelectorAll('button');
-            let redBtn = null, greenBtn = null;
+            // Find and click buttons (with retry)
+            function findAndClickButton(color, retryCount) {{
+                const allButtons = parent.document.querySelectorAll('button');
+                let redBtn = null, greenBtn = null;
 
-            allButtons.forEach((btn) => {{
-                const text = btn.textContent || btn.innerText;
-                if (text.includes('🔴') || text.includes('빨강')) redBtn = btn;
-                else if (text.includes('🟢') || text.includes('초록')) greenBtn = btn;
-            }});
+                allButtons.forEach((btn) => {{
+                    const text = btn.textContent || btn.innerText;
+                    if (text.includes('🔴') || text.includes('빨강')) redBtn = btn;
+                    if (text.includes('🟢') || text.includes('초록')) greenBtn = btn;
+                }});
+
+                console.log('Buttons found - Red:', !!redBtn, 'Green:', !!greenBtn, 'Total buttons:', allButtons.length);
+
+                let targetBtn = (color === 'red') ? redBtn : greenBtn;
+
+                if (targetBtn) {{
+                    console.log('Clicking', color, 'button');
+                    targetBtn.click();
+                }} else if (retryCount < 3) {{
+                    console.log('Button not found, retrying... (attempt', retryCount + 1, ')');
+                    setTimeout(() => findAndClickButton(color, retryCount + 1), 100);
+                }} else {{
+                    console.error('FAILED to find button after 3 retries!');
+                }}
+            }}
 
             // Click the appropriate button based on physical key code
-            let targetBtn = null;
-            if (code === 'KeyF') targetBtn = redBtn;
-            else if (code === 'KeyJ') targetBtn = greenBtn;
-
-            if (targetBtn) {{
-                targetBtn.click();
-            }}
+            const color = (code === 'KeyF') ? 'red' : 'green';
+            findAndClickButton(color, 0);
         }};
 
         // Add the new listener
