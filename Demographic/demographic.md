@@ -1,4 +1,4 @@
-# PHQ-9 Demographics 설계
+# Demographics 설계
 
 ## 1. 현재 포함 필드
 
@@ -6,104 +6,46 @@
 |---------|--------|------|
 | **인구통계학적 변인** | `age` | 참가자 연령 (18-65세) |
 | | `gender` | 성별 (M/F) |
-| | `education` | 교육 연한 (년) |
+| | `handedness` | 손잡이 (오른손잡이/왼손잡이/양손잡이) |
+| | `color_vision` | 색각 이상 여부 (정상/색맹/색약) |
+| | `education_years` | 교육 연한 (년) |
+| | `education_level` | 학교 (0~8: 안 받았음 ~ 대학원 박사 과정) |
+| | `education_status` | 졸업 여부 (1~6: 졸업, 재학, 수료, 휴학, 중퇴, 모름/무응답) |
 | | `employment_status` | 근무 형태 (전일제, 시간제, 임시직/일용직, 은퇴, 장애/질병 휴직, 학생, 무직 (구직 중), 무직 (비구직), 기타) |
 | | `income_level` | 주관적 계층의식 (1~10) |
 | | `marital_status` | 미혼 (미혼모 포함), 기혼 (재혼 포함), 사별, 이혼, 별거 |
+| | `household_size` | 가구원 수 (본인 포함, 명) |
 | **임상 변인** | `is_clinical` | 임상군 여부 (1/0) |
 | | `diagnosis` | 진단명 (6개 범주: 우울장애, 불안장애, ADHD, 중독, 성격장애, 기타) |
 | | `current_treatment` | 현재 치료 여부 (예/아니오) |
-| **동의** | `consent` | 데이터 수집 동의 (KPsych-101 100% 포함) |
+| | `past_treatment` | 과거 치료 여부 (예/아니오) |
+| | `family_history` | 정신과적 가족력 (예/아니오) |
 
 ---
 
-## 2. Diagnosis
+## 2. Education
 
-### 2.1 현재 설정
-8개 진단: 우울장애, 양극성장애, 불안장애, ADHD, PTSD, 강박장애, 성격장애, 기타
+출처: [2023 한국인의 행복조사](한국인의%20행복조사(2023).pdf)
 
-### 2.2 심각도별 배분 (generate_PHQ9_data.py 기준)
+귀하는 정규교육을 어디까지 받았습니까?
 
-**중고도/고도 (moderately_severe, severe)**:
-| 진단 | 비율 |
-|------|------|
-| 우울장애 | 50% |
-| 양극성장애 | 20% |
-| PTSD | 20% |
-| 불안장애 | 10% |
-
-**경도/중등도 (mild, moderate)**:
-| 진단 | 비율 |
-|------|------|
-| 우울장애 | 40% |
-| 불안장애 | 30% |
-| ADHD | 15% |
-| 강박장애 | 10% |
-| 성격장애 | 5% |
-
-**비임상군**: diagnosis = '없음'
-
-### 2.3 논의 필요성
-**현재 상태**: 심각도별 진단 분포 가중치가 임의로 설정됨 (실제 역학 데이터 근거 없음)
-
-**고려 사항**:
-- 한국 정신건강 역학 데이터 기반 가중치 조정 필요성
-- 심각도별 진단 분리 로직의 타당성
-- 균등 분포 vs 차등 가중치 선택
+| DQ1-1) 학교 | DQ1-2) 졸업 여부 |
+|-------------|------------------|
+| ⓪ 안 받았음 | ① 졸업 |
+| ① 초등학교 | ② 재학 |
+| ② 중학교 | ③ 수료 |
+| ③ 고등학교 | ④ 휴학 |
+| ④ 대학(교)(4년제 미만) | ⑤ 중퇴 |
+| ⑤ 대학교(4년제 이상) | ⑥ 모름/무응답 |
+| ⑥ 대학원 석사 과정 | |
+| ⑦ 대학원 박사 과정 | |
+| ⑧ 모름/무응답 | |
 
 ---
 
-## 3. Current Treatment
+## 3. Employment
 
-### 3.1 현재 설정
-```json
-"current_treatment": "예" 또는 "아니오"
-```
-
-### 3.2 확장 옵션
-
-**Option 1 - 구조화**:
-```json
-"current_treatment": {
-  "medication": {
-    "status": true,
-    "type": "SSRI",
-    "duration_months": 6
-  },
-  "psychotherapy": {
-    "status": true,
-    "type": "CBT",
-    "duration_months": 3
-  }
-}
-```
-
-**Option 2 - 문자열**:
-```json
-"current_treatment": "약물치료(SSRI 6개월) + 심리치료(CBT 3개월)"
-```
-
-### 3.3 논의 필요성
-**찬성**:
-- 치료 이력은 우울증 평가에서 중요한 맥락 정보
-- 임상 연구에서 자주 수집됨
-- 치료 효과 분석 시 필요
-
-**반대**:
-- 모든 PHQ-9 데이터셋에 포함되지 않을 수 있음
-- 구조 복잡도 증가
-- 개인정보 민감도 증가
-
-**결정 필요**:
-- [ ] Option 1: 구조화된 객체로 확장
-- [ ] Option 2: 문자열로 유지하되 포맷 가이드 제공
-- [ ] 현재 상태 유지 (간단한 문자열)
-
----
-
-## 4. Employment
-
-### 4.1 후보 1: Time-based (Employment Status, 근무 형태 중심)
+### 3.1 후보 1: Time-based (Employment Status, 근무 형태 중심)
 
 출처: [Firth et al. (2024) - PMC12327771](https://pmc.ncbi.nlm.nih.gov/articles/PMC12327771/) (Naturalistic cohort study)
 
@@ -130,7 +72,7 @@
 - 은퇴/무직
 - 기타
 
-### 4.2 후보 2: Type-based (Occupational Type, 직업 유형 중심)
+### 3.2 후보 2: Type-based (Occupational Type, 직업 유형 중심)
 
 출처: [2023 한국인의 행복조사](한국인의%20행복조사(2023).pdf)
 
@@ -143,7 +85,7 @@ DQ2. 귀하의 직업은 다음 중 어디에 해당합니까?
 | ④ 서비스 종사자 | ⑨ 단순 노무 종사자 | ⑭ 기타(적을 것: ____) |
 | ⑤ 판매 종사자 | ⑩ 군인 | |
 
-### 4.3 논의 필요성
+### 3.3 논의 필요성
 
 - **Time-based vs. Type-based**: 전일제/시간제 같은 근무 형태가 중요한지, 직업 유형(관리자, 전문가 등)이 중요한지
 - **예시 추가 여부**: "관리자(예: )" 형식으로 구체적 예시를 제공할지
@@ -166,9 +108,9 @@ DQ2. 귀하의 직업은 다음 중 어디에 해당합니까?
 
 ---
 
-## 5. Income Level
+## 4. Income Level
 
-### 5.1 후보 1: [2023 한국인의 행복조사](한국인의%20행복조사(2023).pdf) (6단계)
+### 4.1 후보 1: [2023 한국인의 행복조사](한국인의%20행복조사(2023).pdf) (6단계)
 
 귀하의 사회 경제적 지위(소득, 직업, 교육, 재산 등을 고려)는 어디에 속한다고 생각하십니까?
 1. 상상
@@ -178,7 +120,7 @@ DQ2. 귀하의 직업은 다음 중 어디에 해당합니까?
 5. 하상
 6. 하하
 
-### 5.2 후보 2: MacArthur Scale (10단계)
+### 4.2 후보 2: MacArthur Scale (10단계)
 
 출처: [SPARQtools](MacArthur-Scale-of-Subjective-Social-Status-Adult-Version.doc), 한국 연구 ([Hong & Yi, 2017](https://pmc.ncbi.nlm.nih.gov/articles/PMC5269493/))
 
@@ -204,16 +146,16 @@ DQ2. 귀하의 직업은 다음 중 어디에 해당합니까?
 
 ---
 
-## 6. Marital Status
+## 5. Marital Status
 
-### 6.1 후보 1: [통계청 사회조사](https://kostat.go.kr/statDesc.es?act=view&mid=a10501010000&sttr_cd=S004002) / [2024 경제활동인구조사](2024년%20경제활동인구조사%20지침서_외부용.pdf) (4단계)
+### 5.1 후보 1: [통계청 사회조사](https://kostat.go.kr/statDesc.es?act=view&mid=a10501010000&sttr_cd=S004002) / [2024 경제활동인구조사](2024년%20경제활동인구조사%20지침서_외부용.pdf) (4단계)
 
 - 미혼
 - 배우자 있음 (유배우)
 - 사별
 - 이혼
 
-### 6.2 후보 2: [2023 한국인의 행복조사](한국인의%20행복조사(2023).pdf) (5단계)
+### 5.2 후보 2: [2023 한국인의 행복조사](한국인의%20행복조사(2023).pdf) (5단계)
 
 - 미혼 (미혼모 포함)
 - 기혼 (재혼 포함)
@@ -221,7 +163,7 @@ DQ2. 귀하의 직업은 다음 중 어디에 해당합니까?
 - 이혼
 - 별거
 
-### 6.3 논의 필요성
+### 5.3 논의 필요성
 
 - **별거 포함 여부**: 후보 2는 별거를 별도 범주로 분리
 - **미혼모/재혼 구분**: 후보 2는 괄호로 세부 상태 명시
@@ -243,15 +185,3 @@ DQ2. 귀하의 직업은 다음 중 어디에 해당합니까?
 - [2024년 경제활동인구조사 지침서_외부용.pdf](2024년%20경제활동인구조사%20지침서_외부용.pdf)
 - [제8차 한국표준직업분류](제8차+한국표준직업분류+개정+분류+항목표.hwpx)
 - [MacArthur Scale (SPARQtools)](MacArthur-Scale-of-Subjective-Social-Status-Adult-Version.doc)
-
-**내부 문서:**
-
-- [psych101_201_dataset_search.md](../psych101_201_dataset_search.md)
-- [Depression_Risk_Factors_Umbrella_Reviews_2015-2025.md](../PHQ9/Depression_Risk_Factors_Umbrella_Reviews_2015-2025.md)
-- [251030_data_prompt.md](../../kpsych-101-hub/docs/plan/proposal-ver2/seonu/251030_data_prompt.md)
-- [PHQ9_KOR.pdf](../PHQ9/PHQ9_KOR.pdf) (An et al., 2013)
-
-**데이터셋:**
-
-- Psych-101: https://huggingface.co/datasets/marcelbinz/Psych-101
-- Psych-201: https://github.com/marcelbinz/Psych-201
