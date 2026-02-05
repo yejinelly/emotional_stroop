@@ -11,10 +11,12 @@ MAX_RESPONSE_TIME = 3.0  # 최대 응답 시간 (초)
 ITI_MIN = 0.8  # ITI 최소 (초)
 ITI_MAX = 1.2  # ITI 최대 (초)
 FIXATION_DURATION = 0.5  # Fixation 지속 시간 (초)
+BREAK_MIN = 30  # 휴식 최소 시간 (초)
+BREAK_MAX = 120  # 휴식 최대 시간 (초)
 
 # ========== Block 구조 ==========
-TRIALS_PER_BLOCK = 36  # 블록당 시행 수
-NUM_BLOCKS = 4  # 총 블록 수
+TRIALS_PER_BLOCK_FULL = 36   # full: 블록당 36 시행 (4블록)
+TRIALS_PER_BLOCK_PILOT = 15  # pilot: 블록당 15 시행 (2블록)
 
 # ========== 실험 모드 설정 ==========
 # URL 파라미터로 모드 전환: ?mode=pilot (30 trials) 또는 ?mode=full (144 trials)
@@ -354,6 +356,10 @@ if 'showing_break' not in st.session_state:
     st.session_state.showing_break = False
 if 'breaks_shown' not in st.session_state:
     st.session_state.breaks_shown = set()  # 이미 휴식 화면을 보여준 블록 번호
+if 'break_start_time' not in st.session_state:
+    st.session_state.break_start_time = None  # 휴식 시작 시간
+if 'experiment_start_time' not in st.session_state:
+    st.session_state.experiment_start_time = None  # 본 시행 시작 시간
 if 'showing_practice_redo' not in st.session_state:
     st.session_state.showing_practice_redo = False
 if 'practice_attempt' not in st.session_state:
@@ -530,10 +536,21 @@ def create_summary_row():
     exp_df = pd.DataFrame(st.session_state.responses)
 
     # 기본 정보
+    end_time = datetime.now()
+    start_time = st.session_state.experiment_start_time
+
+    # 총 소요시간 계산 (초 단위)
+    if start_time:
+        total_duration = (end_time - start_time).total_seconds()
+    else:
+        total_duration = None
+
     summary = {
         'participant_id': st.session_state.participant_id,
-        'date': datetime.now().strftime("%Y-%m-%d"),
-        'timestamp': datetime.now().isoformat(),
+        'date': end_time.strftime("%Y-%m-%d"),
+        'timestamp_start': start_time.isoformat() if start_time else None,
+        'timestamp_end': end_time.isoformat(),
+        'total_duration_sec': round(total_duration, 2) if total_duration else None,
     }
 
     # 조건별 요약 통계 (정답 trial만 사용하여 RT 계산)
@@ -574,13 +591,25 @@ def create_summary_row():
         summary['practice_rt_mean'] = round(practice_correct['rt'].mean(), 4) if len(practice_correct) > 0 else None
 
     # Experimental 원시 데이터 (trial별로 컬럼에 추가)
-    for i, (_, row) in enumerate(exp_df.iterrows(), 1):
-        summary[f't{i}_word'] = row['word']
-        summary[f't{i}_cond'] = row['condition'][:3]  # pos/neg/neu
-        summary[f't{i}_color'] = row['color']
-        summary[f't{i}_resp'] = row['response']
-        summary[f't{i}_acc'] = row['accuracy']
-        summary[f't{i}_rt'] = round(row['rt'], 4)
+    # 항상 144개 trial 컬럼 생성 (pilot 모드에서도 동일한 헤더 유지)
+    FULL_TRIAL_COUNT = 144
+    for i in range(1, FULL_TRIAL_COUNT + 1):
+        if i <= len(exp_df):
+            row = exp_df.iloc[i - 1]
+            summary[f't{i}_word'] = row['word']
+            summary[f't{i}_cond'] = row['condition'][:3]  # pos/neg/neu
+            summary[f't{i}_color'] = row['color']
+            summary[f't{i}_resp'] = row['response']
+            summary[f't{i}_acc'] = row['accuracy']
+            summary[f't{i}_rt'] = round(row['rt'], 4)
+        else:
+            # Pilot 모드: 나머지 컬럼은 빈 값
+            summary[f't{i}_word'] = None
+            summary[f't{i}_cond'] = None
+            summary[f't{i}_color'] = None
+            summary[f't{i}_resp'] = None
+            summary[f't{i}_acc'] = None
+            summary[f't{i}_rt'] = None
 
     return pd.DataFrame([summary])
 
@@ -719,27 +748,17 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                     min-height: 50vh; color: white; text-align: center; padding-top: 15vh;">
             <p style="font-size: 32px; margin-bottom: 20px; line-height: 1.6;">{page["lines"][0]}</p>
-            <p style="font-size: 32px; margin-top: 20px; margin-bottom: 60px; line-height: 1.6;">{page["lines"][1]}</p>
+            <p style="font-size: 32px; margin-top: 20px; margin-bottom: 40px; line-height: 1.6;">{page["lines"][1]}</p>
+            <p style="font-size: 24px; color: #888;"><span style="color: white; font-weight: bold;">N</span> 키를 눌러 {page["button"]}</p>
         </div>
         ''', unsafe_allow_html=True)
 
-        # 버튼 - 화면 중앙 하단에 고정 (너비 제한)
-        st.markdown(f'''
+        # 숨겨진 버튼 (JavaScript에서 트리거)
+        st.markdown('''
         <style>
-        /* 지시사항 버튼 고정 위치 중앙 */
-        div[data-testid="stButton"]:has(button) {{
-            position: fixed !important;
-            bottom: 20% !important;
-            left: 50% !important;
-            transform: translateX(-50%) !important;
-            z-index: 1000 !important;
-            width: auto !important;
-            max-width: 200px !important;
-        }}
-        div[data-testid="stButton"]:has(button) button {{
-            width: auto !important;
-            padding: 10px 40px !important;
-        }}
+        div[data-testid="stButton"]:has(button[kind="primary"]) {
+            display: none !important;
+        }
         </style>
         ''', unsafe_allow_html=True)
 
@@ -752,6 +771,31 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
             else:
                 st.session_state.instruction_page += 1
             st.rerun()
+
+        # N 키 리스너
+        components.html(f'''
+        <script>
+        (function() {{
+            const pageNum = {current_page};
+            if (window.instructionKeyHandlerInstalled === pageNum) return;
+            window.instructionKeyHandlerInstalled = pageNum;
+
+            function handleInstructionKey(e) {{
+                if (e.key === 'n' || e.key === 'N' || e.code === 'KeyN') {{
+                    e.preventDefault();
+                    const btn = parent.document.querySelector('button[kind="primary"]');
+                    if (btn) {{
+                        btn.click();
+                        parent.document.removeEventListener('keydown', handleInstructionKey);
+                        window.instructionKeyHandlerInstalled = null;
+                    }}
+                }}
+            }}
+
+            parent.document.addEventListener('keydown', handleInstructionKey);
+        }})();
+        </script>
+        ''', height=0)
 
         st.stop()
 
@@ -1171,25 +1215,16 @@ if st.session_state.showing_practice_redo:
     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                 height: 60vh; color: white; text-align: center;">
         <p style="font-size: 32px; margin-bottom: 30px;">정답률이 낮아</p>
-        <p style="font-size: 32px; margin-bottom: 50px;">연습을 다시 시행합니다.</p>
+        <p style="font-size: 32px; margin-bottom: 30px;">연습을 다시 시행합니다.</p>
+        <p style="font-size: 24px; color: #888;"><span style="color: white; font-weight: bold;">N</span> 키를 눌러 다시 연습하기</p>
     </div>
     ''', unsafe_allow_html=True)
 
-    # 버튼 CSS
+    # 숨겨진 버튼 (JavaScript에서 트리거)
     st.markdown('''
     <style>
-    div[data-testid="stButton"]:has(button) {
-        position: fixed !important;
-        bottom: 20% !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
-        z-index: 1000 !important;
-        width: auto !important;
-        max-width: 200px !important;
-    }
-    div[data-testid="stButton"]:has(button) button {
-        width: auto !important;
-        padding: 10px 40px !important;
+    div[data-testid="stButton"]:has(button[kind="primary"]) {
+        display: none !important;
     }
     </style>
     ''', unsafe_allow_html=True)
@@ -1206,6 +1241,31 @@ if st.session_state.showing_practice_redo:
         st.session_state.last_response_correct = None
         st.session_state.last_was_timeout = False
         st.rerun()
+
+    # N 키 리스너
+    components.html(f'''
+    <script>
+    (function() {{
+        const attempt = {st.session_state.practice_attempt};
+        if (window.redoKeyHandlerInstalled === attempt) return;
+        window.redoKeyHandlerInstalled = attempt;
+
+        function handleRedoKey(e) {{
+            if (e.key === 'n' || e.key === 'N' || e.code === 'KeyN') {{
+                e.preventDefault();
+                const btn = parent.document.querySelector('button[kind="primary"]');
+                if (btn) {{
+                    btn.click();
+                    parent.document.removeEventListener('keydown', handleRedoKey);
+                    window.redoKeyHandlerInstalled = null;
+                }}
+            }}
+        }}
+
+        parent.document.addEventListener('keydown', handleRedoKey);
+    }})();
+    </script>
+    ''', height=0)
 
     st.stop()
 
@@ -1238,27 +1298,17 @@ if not st.session_state.instructions_exp_shown:
     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                 min-height: 50vh; color: white; text-align: center; padding-top: 15vh;">
         <p style="font-size: 32px; margin-bottom: 20px; line-height: 1.6;">{page["lines"][0]}</p>
-        <p style="font-size: 32px; margin-top: 20px; margin-bottom: 60px; line-height: 1.6;">{page["lines"][1]}</p>
+        <p style="font-size: 32px; margin-top: 20px; margin-bottom: 40px; line-height: 1.6;">{page["lines"][1]}</p>
+        <p style="font-size: 24px; color: #888;"><span style="color: white; font-weight: bold;">N</span> 키를 눌러 {page["button"]}</p>
     </div>
     ''', unsafe_allow_html=True)
 
-    # 버튼 - 화면 중앙 하단에 고정 (너비 제한)
-    st.markdown(f'''
+    # 숨겨진 버튼 (JavaScript에서 트리거)
+    st.markdown('''
     <style>
-    /* 지시사항 버튼 고정 위치 중앙 */
-    div[data-testid="stButton"]:has(button) {{
-        position: fixed !important;
-        bottom: 20% !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
-        z-index: 1000 !important;
-        width: auto !important;
-        max-width: 200px !important;
-    }}
-    div[data-testid="stButton"]:has(button) button {{
-        width: auto !important;
-        padding: 10px 40px !important;
-    }}
+    div[data-testid="stButton"]:has(button[kind="primary"]) {
+        display: none !important;
+    }
     </style>
     ''', unsafe_allow_html=True)
 
@@ -1270,9 +1320,36 @@ if not st.session_state.instructions_exp_shown:
             st.session_state.exp_instruction_page = 0
             # Experimental trials 생성
             st.session_state.exp_trials = create_exp_trials(n_per_condition=N_PER_CONDITION)
+            # 본 시행 시작 시간 기록
+            st.session_state.experiment_start_time = datetime.now()
         else:
             st.session_state.exp_instruction_page += 1
         st.rerun()
+
+    # N 키 리스너
+    components.html(f'''
+    <script>
+    (function() {{
+        const pageNum = {current_page};
+        if (window.expInstructionKeyHandlerInstalled === pageNum) return;
+        window.expInstructionKeyHandlerInstalled = pageNum;
+
+        function handleExpInstructionKey(e) {{
+            if (e.key === 'n' || e.key === 'N' || e.code === 'KeyN') {{
+                e.preventDefault();
+                const btn = parent.document.querySelector('button[kind="primary"]');
+                if (btn) {{
+                    btn.click();
+                    parent.document.removeEventListener('keydown', handleExpInstructionKey);
+                    window.expInstructionKeyHandlerInstalled = null;
+                }}
+            }}
+        }}
+
+        parent.document.addEventListener('keydown', handleExpInstructionKey);
+    }})();
+    </script>
+    ''', height=0)
 
     st.stop()
 
@@ -1318,56 +1395,131 @@ if st.session_state.task_completed:
 # 5. Experimental Trials 진행
 if st.session_state.trial_num < len(st.session_state.exp_trials):
 
-    # 블록 간 휴식 체크 (full 모드에서만 적용)
-    current_block = st.session_state.trial_num // TRIALS_PER_BLOCK + 1
-    completed_block = st.session_state.trial_num // TRIALS_PER_BLOCK
-    is_block_start = (st.session_state.experiment_mode == "full" and
-                      st.session_state.trial_num > 0 and
-                      st.session_state.trial_num % TRIALS_PER_BLOCK == 0 and
+    # 블록 간 휴식 체크
+    trials_per_block = TRIALS_PER_BLOCK_PILOT if st.session_state.experiment_mode == "pilot" else TRIALS_PER_BLOCK_FULL
+    num_blocks = 2 if st.session_state.experiment_mode == "pilot" else 4
+    current_block = st.session_state.trial_num // trials_per_block + 1
+    completed_block = st.session_state.trial_num // trials_per_block
+    is_block_start = (st.session_state.trial_num > 0 and
+                      st.session_state.trial_num % trials_per_block == 0 and
                       st.session_state.trial_num < len(st.session_state.exp_trials) and
                       completed_block not in st.session_state.breaks_shown)  # 아직 안 보여준 블록만
 
     # 블록 시작 시 휴식 화면 표시
     if is_block_start and not st.session_state.showing_break:
         st.session_state.showing_break = True
+        st.session_state.break_start_time = time.time()
         st.rerun()
 
     # 휴식 화면 표시 중
     if st.session_state.showing_break:
-        st.markdown(f'''
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
-                    height: 60vh; color: white; text-align: center;">
-            <h1 style="font-size: 48px; margin-bottom: 30px;">블록 {completed_block}/{NUM_BLOCKS} 완료!</h1>
-            <p style="font-size: 28px; margin-bottom: 50px;">잠시 휴식하세요.</p>
-        </div>
-        ''', unsafe_allow_html=True)
+        elapsed_break = time.time() - st.session_state.break_start_time
+        remaining_min = max(0, BREAK_MIN - elapsed_break)
+        remaining_max = max(0, BREAK_MAX - elapsed_break)
+        can_continue = elapsed_break >= BREAK_MIN
 
-        # 버튼 - 화면 중앙 하단에 고정 (지시사항 버튼과 동일 위치)
+        # 최대 시간 초과 시 자동 진행
+        if elapsed_break >= BREAK_MAX:
+            new_breaks = st.session_state.breaks_shown.copy()
+            new_breaks.add(completed_block)
+            st.session_state.breaks_shown = new_breaks
+            st.session_state.showing_break = False
+            st.session_state.break_start_time = None
+            st.rerun()
+
+        # 휴식 화면 UI
+        if can_continue:
+            # 30초 이상 경과: N 키로 진행 가능
+            st.markdown(f'''
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
+                        height: 60vh; color: white; text-align: center;">
+                <h1 style="font-size: 48px; margin-bottom: 30px;">블록 {completed_block}/{num_blocks} 완료!</h1>
+                <p style="font-size: 28px; margin-bottom: 30px;">잠시 휴식하세요.</p>
+                <p style="font-size: 24px; color: #888;">준비되면 <span style="color: white; font-weight: bold;">N</span> 키를 눌러 다음 블록을 시작하세요</p>
+                <p style="font-size: 20px; color: #666; margin-top: 20px;">남은 휴식 시간: {int(remaining_max)}초</p>
+            </div>
+            ''', unsafe_allow_html=True)
+        else:
+            # 30초 미만: 대기 중
+            st.markdown(f'''
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
+                        height: 60vh; color: white; text-align: center;">
+                <h1 style="font-size: 48px; margin-bottom: 30px;">블록 {completed_block}/{num_blocks} 완료!</h1>
+                <p style="font-size: 28px; margin-bottom: 30px;">잠시 휴식하세요.</p>
+                <p style="font-size: 24px; color: #888;">{int(remaining_min)}초 후에 다음 블록을 시작할 수 있습니다</p>
+            </div>
+            ''', unsafe_allow_html=True)
+
+        # 숨겨진 버튼 (JavaScript에서 트리거)
         st.markdown('''
         <style>
-        div[data-testid="stButton"]:has(button) {
-            position: fixed !important;
-            bottom: 20% !important;
-            left: 50% !important;
-            transform: translateX(-50%) !important;
-            z-index: 1000 !important;
-            width: auto !important;
-            max-width: 200px !important;
-        }
-        div[data-testid="stButton"]:has(button) button {
-            width: auto !important;
-            padding: 10px 40px !important;
+        div[data-testid="stButton"]:has(button[kind="primary"]) {
+            display: none !important;
         }
         </style>
         ''', unsafe_allow_html=True)
 
-        if st.button("다음 블록 시작", key=f"continue_block_{completed_block}", type="primary"):
+        if st.button("continue_break", key=f"continue_block_{completed_block}", type="primary"):
             # set을 명시적으로 재할당 (Streamlit이 변경 감지하도록)
             new_breaks = st.session_state.breaks_shown.copy()
             new_breaks.add(completed_block)
             st.session_state.breaks_shown = new_breaks
             st.session_state.showing_break = False
+            st.session_state.break_start_time = None
             st.rerun()
+
+        # N 키 리스너 + 자동 새로고침 (카운트다운 업데이트용)
+        components.html(f'''
+        <script>
+        (function() {{
+            const blockNum = {completed_block};
+            const canContinue = {'true' if can_continue else 'false'};
+            const BREAK_MAX_MS = {BREAK_MAX * 1000};
+            const elapsedMs = {int(elapsed_break * 1000)};
+
+            // 자동 새로고침 (1초마다 카운트다운 업데이트)
+            if (!window.breakRefreshTimer) {{
+                window.breakRefreshTimer = setInterval(() => {{
+                    parent.location.reload();
+                }}, 1000);
+            }}
+
+            // 최대 시간 후 자동 진행
+            if (!window.breakAutoTimer) {{
+                const remainingMs = BREAK_MAX_MS - elapsedMs;
+                if (remainingMs > 0) {{
+                    window.breakAutoTimer = setTimeout(() => {{
+                        const btn = parent.document.querySelector('button[kind="primary"]');
+                        if (btn) btn.click();
+                    }}, remainingMs);
+                }}
+            }}
+
+            // N 키 핸들러 (30초 이후에만 활성화)
+            if (window.breakKeyHandlerInstalled !== blockNum) {{
+                window.breakKeyHandlerInstalled = blockNum;
+
+                function handleBreakKey(e) {{
+                    if ((e.key === 'n' || e.key === 'N' || e.code === 'KeyN') && canContinue) {{
+                        e.preventDefault();
+                        clearInterval(window.breakRefreshTimer);
+                        clearTimeout(window.breakAutoTimer);
+                        window.breakRefreshTimer = null;
+                        window.breakAutoTimer = null;
+                        const btn = parent.document.querySelector('button[kind="primary"]');
+                        if (btn) {{
+                            btn.click();
+                            parent.document.removeEventListener('keydown', handleBreakKey);
+                            window.breakKeyHandlerInstalled = null;
+                        }}
+                    }}
+                }}
+
+                parent.document.addEventListener('keydown', handleBreakKey);
+            }}
+        }})();
+        </script>
+        ''', height=0)
         st.stop()
 
     # ITI 표시 중인 경우
