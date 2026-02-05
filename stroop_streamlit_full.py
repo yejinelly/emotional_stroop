@@ -1310,6 +1310,13 @@ if not st.session_state.instructions_exp_shown:
         },
         {
             "lines": [
+                "키보드로 색깔을 선택하세요.",
+                "🔴 <strong>빨강</strong>: <strong>F</strong> 키 &nbsp;&nbsp;&nbsp; 🟢 <strong>초록</strong>: <strong>J</strong> 키"
+            ],
+            "button": "다음"
+        },
+        {
+            "lines": [
                 "본 과제에서는 <strong>피드백이 제공되지 않습니다.</strong>",
                 "연습과 동일하게 <strong>글자의 색깔만</strong> 판단해주세요."
             ],
