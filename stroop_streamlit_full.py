@@ -358,6 +358,8 @@ if 'breaks_shown' not in st.session_state:
     st.session_state.breaks_shown = set()  # 이미 휴식 화면을 보여준 블록 번호
 if 'break_start_time' not in st.session_state:
     st.session_state.break_start_time = None  # 휴식 시작 시간
+if 'show_block_key_reminder' not in st.session_state:
+    st.session_state.show_block_key_reminder = False  # 블록 시작 전 키 안내 표시
 if 'experiment_start_time' not in st.session_state:
     st.session_state.experiment_start_time = None  # 본 시행 시작 시간
 if 'showing_practice_redo' not in st.session_state:
@@ -1484,6 +1486,7 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
             st.session_state.breaks_shown = new_breaks
             st.session_state.showing_break = False
             st.session_state.break_start_time = None
+            st.session_state.show_block_key_reminder = True  # 키 안내 화면 표시
             st.rerun()
 
         # 휴식 화면 UI (단순 버전)
@@ -1521,6 +1524,7 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
             st.session_state.breaks_shown = new_breaks
             st.session_state.showing_break = False
             st.session_state.break_start_time = None
+            st.session_state.show_block_key_reminder = True  # 키 안내 화면 표시
             st.rerun()
 
         # N 키 리스너 (자동 새로고침 제거)
@@ -1554,6 +1558,65 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
         # Streamlit 기반 자동 새로고침 (1초마다)
         time.sleep(1)
         st.rerun()
+
+    # 블록 시작 전 키 안내 화면
+    if st.session_state.show_block_key_reminder:
+        st.markdown('''
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
+                    height: 70vh; color: white; text-align: center;">
+            <h2 style="font-size: 36px; margin-bottom: 50px;">키 안내</h2>
+            <div style="display: flex; gap: 80px; margin-bottom: 60px;">
+                <div style="text-align: center;">
+                    <span style="font-size: 64px; font-weight: bold; color: #ff4444;">F</span>
+                    <p style="font-size: 28px; margin-top: 15px; color: #ff4444;">빨강</p>
+                </div>
+                <div style="text-align: center;">
+                    <span style="font-size: 64px; font-weight: bold; color: #44ff44;">J</span>
+                    <p style="font-size: 28px; margin-top: 15px; color: #44ff44;">초록</p>
+                </div>
+            </div>
+            <p style="font-size: 24px; color: #4CAF50;">준비되면 <span style="color: white; font-weight: bold;">N</span> 키를 눌러 시작하세요</p>
+        </div>
+        ''', unsafe_allow_html=True)
+
+        # 숨겨진 버튼
+        st.markdown('''
+        <style>
+        div[data-testid="stButton"]:has(button[kind="secondary"]) {
+            display: none !important;
+        }
+        </style>
+        ''', unsafe_allow_html=True)
+
+        if st.button("start_block", key="start_block_after_break", type="secondary"):
+            st.session_state.show_block_key_reminder = False
+            st.rerun()
+
+        # N 키 리스너
+        components.html('''
+        <script>
+        (function() {
+            if (!window.blockKeyReminderHandlerInstalled) {
+                window.blockKeyReminderHandlerInstalled = true;
+
+                function handleKey(e) {
+                    if (e.key === 'n' || e.key === 'N' || e.code === 'KeyN') {
+                        e.preventDefault();
+                        const btn = parent.document.querySelector('button[kind="secondary"]');
+                        if (btn) {
+                            btn.click();
+                            parent.document.removeEventListener('keydown', handleKey);
+                            window.blockKeyReminderHandlerInstalled = false;
+                        }
+                    }
+                }
+
+                parent.document.addEventListener('keydown', handleKey);
+            }
+        })();
+        </script>
+        ''', height=0)
+        st.stop()
 
     # ITI 표시 중인 경우
     if st.session_state.showing_iti:
