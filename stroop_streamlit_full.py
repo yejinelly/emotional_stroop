@@ -727,7 +727,7 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
             },
             {
                 "lines": [
-                    "키보드로 색깔을 선택하세요.",
+                    "<strong>단어의 의미는 무시</strong>하고, <strong>글자의 색깔만</strong> 판단해주세요.",
                     ""
                 ],
                 "button": "다음"
@@ -1339,7 +1339,7 @@ if not st.session_state.instructions_exp_shown:
         },
         {
             "lines": [
-                "연습과 동일하게 <strong>글자의 색깔만</strong> 판단해주세요.",
+                "<strong>단어의 의미는 무시</strong>하고, <strong>글자의 색깔만</strong> 판단해주세요.",
                 ""
             ],
             "button": "본 과제 시작"
