@@ -1339,8 +1339,8 @@ if not st.session_state.instructions_exp_shown:
         },
         {
             "lines": [
-                "🔴 <strong>빨강</strong>: <strong>F</strong> 키 &nbsp;&nbsp;&nbsp; 🟢 <strong>초록</strong>: <strong>J</strong> 키",
-                "연습과 동일하게 <strong>글자의 색깔만</strong> 판단해주세요."
+                "연습과 동일하게 <strong>글자의 색깔만</strong> 판단해주세요.",
+                ""
             ],
             "button": "본 과제 시작"
         }
@@ -1350,7 +1350,7 @@ if not st.session_state.instructions_exp_shown:
     page = exp_instruction_pages[current_page]
     is_last_page = current_page == len(exp_instruction_pages) - 1
 
-    # 페이지 내용 (중앙 정렬) + 3초 후 N키 안내 표시
+    # 스타일 정의
     st.markdown(f'''
     <style>
     @keyframes fadeInExp{current_page} {{
@@ -1379,15 +1379,42 @@ if not st.session_state.instructions_exp_shown:
         display: none !important;
     }}
     </style>
-    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
-                min-height: 50vh; color: white; text-align: center; padding-top: 15vh;">
-        <p style="font-size: 32px; margin-bottom: 20px; line-height: 1.6;">{page["lines"][0]}</p>
-        <p style="font-size: 32px; margin-top: 20px; margin-bottom: 0; line-height: 1.6;">{page["lines"][1]}</p>
-        <div class="n-key-prompt-e{current_page}">
-            <div class="n-key-button-e{current_page}"><span>N</span> 키를 눌러 {page["button"]}</div>
-        </div>
-    </div>
     ''', unsafe_allow_html=True)
+
+    # 페이지별 콘텐츠 렌더링
+    if current_page == 1:
+        # F/J 키 안내 페이지 (새 스타일)
+        st.markdown(f'''
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
+                    min-height: 50vh; color: white; text-align: center; padding-top: 15vh;">
+            <div style="display: flex; gap: 80px; margin-bottom: 40px;">
+                <div style="text-align: center;">
+                    <span style="font-size: 64px; font-weight: bold; color: #ff4444;">F</span>
+                    <p style="font-size: 28px; margin-top: 15px; color: #ff4444;">빨강</p>
+                </div>
+                <div style="text-align: center;">
+                    <span style="font-size: 64px; font-weight: bold; color: #44ff44;">J</span>
+                    <p style="font-size: 28px; margin-top: 15px; color: #44ff44;">초록</p>
+                </div>
+            </div>
+            <p style="font-size: 32px; margin-bottom: 20px; line-height: 1.6;">{page["lines"][0]}</p>
+            <div class="n-key-prompt-e{current_page}">
+                <div class="n-key-button-e{current_page}"><span>N</span> 키를 눌러 {page["button"]}</div>
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
+    else:
+        # 일반 페이지
+        st.markdown(f'''
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
+                    min-height: 50vh; color: white; text-align: center; padding-top: 15vh;">
+            <p style="font-size: 32px; margin-bottom: 20px; line-height: 1.6;">{page["lines"][0]}</p>
+            <p style="font-size: 32px; margin-top: 20px; margin-bottom: 0; line-height: 1.6;">{page["lines"][1]}</p>
+            <div class="n-key-prompt-e{current_page}">
+                <div class="n-key-button-e{current_page}"><span>N</span> 키를 눌러 {page["button"]}</div>
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
 
     clicked = st.button(page["button"], key=f"exp_instruction_btn_{current_page}", type="primary")
 
