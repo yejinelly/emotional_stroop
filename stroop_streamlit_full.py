@@ -1492,9 +1492,8 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                         height: 70vh; color: white; text-align: center;">
                 <h1 style="font-size: 48px; margin-bottom: 40px;">블록 {completed_block}/{num_blocks} 완료!</h1>
-                <p style="font-size: 28px; margin-bottom: 60px;">잠시 휴식하세요.</p>
-                <p style="font-size: 24px; color: #4CAF50;">준비되면 <span style="color: white; font-weight: bold;">N</span> 키를 눌러 다음 블록을 시작하세요</p>
-                <p style="font-size: 20px; color: #666; margin-top: 40px;">{remaining_max}초 후 자동 시작</p>
+                <p style="font-size: 24px; color: #4CAF50; margin-bottom: 40px;">준비되면 <span style="color: white; font-weight: bold;">N</span> 키를 눌러 다음 블록을 시작하세요</p>
+                <p style="font-size: 20px; color: #666;">{remaining_max}초 후 자동 시작</p>
             </div>
             ''', unsafe_allow_html=True)
         else:
