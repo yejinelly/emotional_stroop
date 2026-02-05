@@ -1483,16 +1483,35 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
             st.session_state.break_start_time = None
             st.rerun()
 
-        # 휴식 화면 UI
+        # 휴식 화면 UI - 진행 바 포함
+        progress_percent = min(100, (elapsed_break / BREAK_MAX) * 100)
+        min_marker_percent = (BREAK_MIN / BREAK_MAX) * 100  # 30초 위치 (25%)
+
         if can_continue:
             # 30초 이상 경과: N 키로 진행 가능
             st.markdown(f'''
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                         height: 60vh; color: white; text-align: center;">
                 <h1 style="font-size: 48px; margin-bottom: 30px;">블록 {completed_block}/{num_blocks} 완료!</h1>
-                <p style="font-size: 28px; margin-bottom: 30px;">잠시 휴식하세요.</p>
-                <p style="font-size: 24px; color: #888;">준비되면 <span style="color: white; font-weight: bold;">N</span> 키를 눌러 다음 블록을 시작하세요</p>
-                <p style="font-size: 20px; color: #666; margin-top: 20px;">남은 휴식 시간: {int(remaining_max)}초</p>
+                <p style="font-size: 28px; margin-bottom: 40px;">잠시 휴식하세요.</p>
+
+                <!-- 진행 바 -->
+                <div style="width: 400px; margin-bottom: 20px;">
+                    <div style="position: relative; height: 12px; background-color: #333; border-radius: 6px; overflow: visible;">
+                        <!-- 진행 표시 -->
+                        <div style="height: 100%; width: {progress_percent}%; background: linear-gradient(90deg, #4CAF50, #8BC34A); border-radius: 6px; transition: width 0.3s;"></div>
+                        <!-- 30초 마커 -->
+                        <div style="position: absolute; left: {min_marker_percent}%; top: -8px; width: 2px; height: 28px; background-color: #888;"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 14px; color: #888;">
+                        <span>0초</span>
+                        <span style="margin-left: {min_marker_percent - 10}%;">▲ 시작 가능</span>
+                        <span>2분 (자동 시작)</span>
+                    </div>
+                </div>
+
+                <p style="font-size: 24px; color: #4CAF50; margin-top: 30px;">준비되면 <span style="color: white; font-weight: bold;">N</span> 키를 눌러 다음 블록을 시작하세요</p>
+                <p style="font-size: 18px; color: #666; margin-top: 10px;">{int(remaining_max)}초 후 자동 시작</p>
             </div>
             ''', unsafe_allow_html=True)
         else:
@@ -1501,8 +1520,24 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                         height: 60vh; color: white; text-align: center;">
                 <h1 style="font-size: 48px; margin-bottom: 30px;">블록 {completed_block}/{num_blocks} 완료!</h1>
-                <p style="font-size: 28px; margin-bottom: 30px;">잠시 휴식하세요.</p>
-                <p style="font-size: 24px; color: #888;">{int(remaining_min)}초 후에 다음 블록을 시작할 수 있습니다</p>
+                <p style="font-size: 28px; margin-bottom: 40px;">잠시 휴식하세요.</p>
+
+                <!-- 진행 바 -->
+                <div style="width: 400px; margin-bottom: 20px;">
+                    <div style="position: relative; height: 12px; background-color: #333; border-radius: 6px; overflow: visible;">
+                        <!-- 진행 표시 -->
+                        <div style="height: 100%; width: {progress_percent}%; background-color: #666; border-radius: 6px; transition: width 0.3s;"></div>
+                        <!-- 30초 마커 -->
+                        <div style="position: absolute; left: {min_marker_percent}%; top: -8px; width: 2px; height: 28px; background-color: #888;"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 14px; color: #888;">
+                        <span>0초</span>
+                        <span style="margin-left: {min_marker_percent - 10}%;">▲ 시작 가능</span>
+                        <span>2분 (자동 시작)</span>
+                    </div>
+                </div>
+
+                <p style="font-size: 24px; color: #888; margin-top: 30px;">{int(remaining_min)}초 후에 시작할 수 있습니다</p>
             </div>
             ''', unsafe_allow_html=True)
 
