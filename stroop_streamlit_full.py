@@ -1650,7 +1650,7 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
         </style>
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                     height: 70vh; text-align: center;">
-            <h2 style="font-size: 36px; margin-bottom: 50px; color: white;">키 안내</h2>
+            <p style="font-size: 32px; margin-bottom: 40px; color: white;"><strong>단어의 의미는 무시</strong>하고, <strong>글자의 색깔만</strong> 판단해주세요.</p>
             <div style="display: flex; gap: 80px; margin-bottom: 40px;">
                 <div style="text-align: center;">
                     <div style="font-size: 64px; font-weight: bold; color: red;">F</div>
