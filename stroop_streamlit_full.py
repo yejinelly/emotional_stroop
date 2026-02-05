@@ -754,7 +754,7 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
         }}
         .n-key-prompt-p{current_page} {{
             opacity: 0;
-            animation: fadeInPractice{current_page} 0.5s ease-in-out 3s forwards;
+            animation: fadeInPractice{current_page} 0.5s ease-in-out 2s forwards;
             margin-top: 150px;
         }}
         .n-key-button-p{current_page} {{
@@ -826,7 +826,7 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
         <script>
         (function() {{
             const pageNum = {current_page};
-            const DELAY_MS = 3000;
+            const DELAY_MS = 2000;
 
             if (window.instructionKeyHandlerInstalled === pageNum) return;
             window.instructionKeyHandlerInstalled = pageNum;
@@ -1359,7 +1359,7 @@ if not st.session_state.instructions_exp_shown:
     }}
     .n-key-prompt-e{current_page} {{
         opacity: 0;
-        animation: fadeInExp{current_page} 0.5s ease-in-out 3s forwards;
+        animation: fadeInExp{current_page} 0.5s ease-in-out 2s forwards;
         margin-top: 150px;
     }}
     .n-key-button-e{current_page} {{
@@ -1435,7 +1435,7 @@ if not st.session_state.instructions_exp_shown:
     <script>
     (function() {{
         const pageNum = {current_page};
-        const DELAY_MS = 3000;
+        const DELAY_MS = 2000;
 
         if (window.expInstructionKeyHandlerInstalled === pageNum) return;
         window.expInstructionKeyHandlerInstalled = pageNum;
