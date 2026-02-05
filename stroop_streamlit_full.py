@@ -743,13 +743,39 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
         page = instruction_pages[current_page]
         is_last_page = current_page == len(instruction_pages) - 1
 
-        # 페이지 내용 (중앙 정렬)
+        # 페이지 내용 (중앙 정렬) + 5초 후 N키 안내 표시
         st.markdown(f'''
+        <style>
+        @keyframes fadeIn {{
+            from {{ opacity: 0; }}
+            to {{ opacity: 1; }}
+        }}
+        .n-key-prompt {{
+            opacity: 0;
+            animation: fadeIn 0.5s ease-in-out 5s forwards;
+            margin-top: 80px;
+        }}
+        .n-key-button {{
+            display: inline-block;
+            background-color: #333;
+            border: 2px solid #666;
+            border-radius: 8px;
+            padding: 12px 32px;
+            font-size: 20px;
+            color: #ccc;
+        }}
+        .n-key-button span {{
+            color: white;
+            font-weight: bold;
+        }}
+        </style>
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                     min-height: 50vh; color: white; text-align: center; padding-top: 15vh;">
             <p style="font-size: 32px; margin-bottom: 20px; line-height: 1.6;">{page["lines"][0]}</p>
-            <p style="font-size: 32px; margin-top: 20px; margin-bottom: 40px; line-height: 1.6;">{page["lines"][1]}</p>
-            <p style="font-size: 24px; color: #888;"><span style="color: white; font-weight: bold;">N</span> 키를 눌러 {page["button"]}</p>
+            <p style="font-size: 32px; margin-top: 20px; margin-bottom: 0; line-height: 1.6;">{page["lines"][1]}</p>
+            <div class="n-key-prompt">
+                <div class="n-key-button"><span>N</span> 키를 눌러 {page["button"]}</div>
+            </div>
         </div>
         ''', unsafe_allow_html=True)
 
@@ -772,16 +798,24 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
                 st.session_state.instruction_page += 1
             st.rerun()
 
-        # N 키 리스너
+        # N 키 리스너 (5초 후 활성화)
         components.html(f'''
         <script>
         (function() {{
             const pageNum = {current_page};
+            const DELAY_MS = 5000;
+
             if (window.instructionKeyHandlerInstalled === pageNum) return;
             window.instructionKeyHandlerInstalled = pageNum;
+            window.instructionKeyEnabled = false;
+
+            // 5초 후 N 키 활성화
+            setTimeout(() => {{
+                window.instructionKeyEnabled = true;
+            }}, DELAY_MS);
 
             function handleInstructionKey(e) {{
-                if (e.key === 'n' || e.key === 'N' || e.code === 'KeyN') {{
+                if ((e.key === 'n' || e.key === 'N' || e.code === 'KeyN') && window.instructionKeyEnabled) {{
                     e.preventDefault();
                     const btn = parent.document.querySelector('button[kind="primary"]');
                     if (btn) {{
@@ -1293,13 +1327,39 @@ if not st.session_state.instructions_exp_shown:
     page = exp_instruction_pages[current_page]
     is_last_page = current_page == len(exp_instruction_pages) - 1
 
-    # 페이지 내용 (중앙 정렬)
+    # 페이지 내용 (중앙 정렬) + 5초 후 N키 안내 표시
     st.markdown(f'''
+    <style>
+    @keyframes fadeInExp {{
+        from {{ opacity: 0; }}
+        to {{ opacity: 1; }}
+    }}
+    .n-key-prompt-exp {{
+        opacity: 0;
+        animation: fadeInExp 0.5s ease-in-out 5s forwards;
+        margin-top: 80px;
+    }}
+    .n-key-button-exp {{
+        display: inline-block;
+        background-color: #333;
+        border: 2px solid #666;
+        border-radius: 8px;
+        padding: 12px 32px;
+        font-size: 20px;
+        color: #ccc;
+    }}
+    .n-key-button-exp span {{
+        color: white;
+        font-weight: bold;
+    }}
+    </style>
     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                 min-height: 50vh; color: white; text-align: center; padding-top: 15vh;">
         <p style="font-size: 32px; margin-bottom: 20px; line-height: 1.6;">{page["lines"][0]}</p>
-        <p style="font-size: 32px; margin-top: 20px; margin-bottom: 40px; line-height: 1.6;">{page["lines"][1]}</p>
-        <p style="font-size: 24px; color: #888;"><span style="color: white; font-weight: bold;">N</span> 키를 눌러 {page["button"]}</p>
+        <p style="font-size: 32px; margin-top: 20px; margin-bottom: 0; line-height: 1.6;">{page["lines"][1]}</p>
+        <div class="n-key-prompt-exp">
+            <div class="n-key-button-exp"><span>N</span> 키를 눌러 {page["button"]}</div>
+        </div>
     </div>
     ''', unsafe_allow_html=True)
 
@@ -1326,16 +1386,24 @@ if not st.session_state.instructions_exp_shown:
             st.session_state.exp_instruction_page += 1
         st.rerun()
 
-    # N 키 리스너
+    # N 키 리스너 (5초 후 활성화)
     components.html(f'''
     <script>
     (function() {{
         const pageNum = {current_page};
+        const DELAY_MS = 5000;
+
         if (window.expInstructionKeyHandlerInstalled === pageNum) return;
         window.expInstructionKeyHandlerInstalled = pageNum;
+        window.expInstructionKeyEnabled = false;
+
+        // 5초 후 N 키 활성화
+        setTimeout(() => {{
+            window.expInstructionKeyEnabled = true;
+        }}, DELAY_MS);
 
         function handleExpInstructionKey(e) {{
-            if (e.key === 'n' || e.key === 'N' || e.code === 'KeyN') {{
+            if ((e.key === 'n' || e.key === 'N' || e.code === 'KeyN') && window.expInstructionKeyEnabled) {{
                 e.preventDefault();
                 const btn = parent.document.querySelector('button[kind="primary"]');
                 if (btn) {{
