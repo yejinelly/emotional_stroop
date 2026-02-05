@@ -1303,21 +1303,14 @@ if not st.session_state.instructions_exp_shown:
     exp_instruction_pages = [
         {
             "lines": [
-                "연습이 끝났습니다!",
-                "이제 <strong>본 과제</strong>를 진행합니다."
+                "연습이 끝났습니다! 이제 <strong>본 과제</strong>를 진행합니다.",
+                "본 과제에서는 <strong>피드백이 제공되지 않습니다.</strong>"
             ],
             "button": "다음"
         },
         {
             "lines": [
-                "키보드로 색깔을 선택하세요.",
-                "🔴 <strong>빨강</strong>: <strong>F</strong> 키 &nbsp;&nbsp;&nbsp; 🟢 <strong>초록</strong>: <strong>J</strong> 키"
-            ],
-            "button": "다음"
-        },
-        {
-            "lines": [
-                "본 과제에서는 <strong>피드백이 제공되지 않습니다.</strong>",
+                "🔴 <strong>빨강</strong>: <strong>F</strong> 키 &nbsp;&nbsp;&nbsp; 🟢 <strong>초록</strong>: <strong>J</strong> 키",
                 "연습과 동일하게 <strong>글자의 색깔만</strong> 판단해주세요."
             ],
             "button": "본 과제 시작"
