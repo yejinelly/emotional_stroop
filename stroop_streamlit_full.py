@@ -1461,6 +1461,9 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
                       st.session_state.trial_num < len(st.session_state.exp_trials) and
                       completed_block not in st.session_state.breaks_shown)  # 아직 안 보여준 블록만
 
+    # DEBUG: 휴식 체크 (화면에 표시)
+    st.sidebar.write(f"🔍 trial={st.session_state.trial_num}, per_block={trials_per_block}, is_break={is_block_start}, mode={st.session_state.experiment_mode}")
+
     # 블록 시작 시 휴식 화면 표시
     if is_block_start and not st.session_state.showing_break:
         st.session_state.showing_break = True
