@@ -728,7 +728,7 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
             {
                 "lines": [
                     "키보드로 색깔을 선택하세요.",
-                    "🔴 <strong>빨강</strong>: <strong>F</strong> 키 &nbsp;&nbsp;&nbsp; 🟢 <strong>초록</strong>: <strong>J</strong> 키"
+                    ""
                 ],
                 "button": "다음"
             },
@@ -777,7 +777,19 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                     min-height: 50vh; color: white; text-align: center; padding-top: 15vh;">
             <p style="font-size: 32px; margin-bottom: 20px; line-height: 1.6;">{page["lines"][0]}</p>
-            <p style="font-size: 32px; margin-top: 20px; margin-bottom: 0; line-height: 1.6;">{page["lines"][1]}</p>
+            {"" if current_page == 1 else f'<p style="font-size: 32px; margin-top: 20px; margin-bottom: 0; line-height: 1.6;">{page["lines"][1]}</p>'}
+            {"" if current_page != 1 else '''
+            <div style="display: flex; gap: 80px; margin-top: 40px; margin-bottom: 20px;">
+                <div style="text-align: center;">
+                    <span style="font-size: 64px; font-weight: bold; color: #ff4444;">F</span>
+                    <p style="font-size: 28px; margin-top: 15px; color: #ff4444;">빨강</p>
+                </div>
+                <div style="text-align: center;">
+                    <span style="font-size: 64px; font-weight: bold; color: #44ff44;">J</span>
+                    <p style="font-size: 28px; margin-top: 15px; color: #44ff44;">초록</p>
+                </div>
+            </div>
+            '''}
             <div class="n-key-prompt-p{current_page}">
                 <div class="n-key-button-p{current_page}"><span>N</span> 키를 눌러 {page["button"]}</div>
             </div>
@@ -1562,10 +1574,26 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
     # 블록 시작 전 키 안내 화면
     if st.session_state.show_block_key_reminder:
         st.markdown('''
+        <style>
+        .n-key-button-block {
+            display: inline-block;
+            background-color: #333;
+            border: 2px solid #666;
+            border-radius: 8px;
+            padding: 12px 32px;
+            font-size: 20px;
+            color: #ccc;
+            margin-top: 40px;
+        }
+        .n-key-button-block span {
+            color: white;
+            font-weight: bold;
+        }
+        </style>
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                     height: 70vh; color: white; text-align: center;">
             <h2 style="font-size: 36px; margin-bottom: 50px;">키 안내</h2>
-            <div style="display: flex; gap: 80px; margin-bottom: 60px;">
+            <div style="display: flex; gap: 80px; margin-bottom: 40px;">
                 <div style="text-align: center;">
                     <span style="font-size: 64px; font-weight: bold; color: #ff4444;">F</span>
                     <p style="font-size: 28px; margin-top: 15px; color: #ff4444;">빨강</p>
@@ -1575,7 +1603,7 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
                     <p style="font-size: 28px; margin-top: 15px; color: #44ff44;">초록</p>
                 </div>
             </div>
-            <p style="font-size: 24px; color: #4CAF50;">준비되면 <span style="color: white; font-weight: bold;">N</span> 키를 눌러 시작하세요</p>
+            <div class="n-key-button-block"><span>N</span> 키를 눌러 시작</div>
         </div>
         ''', unsafe_allow_html=True)
 
