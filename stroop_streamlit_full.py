@@ -753,7 +753,7 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
         .n-key-prompt {{
             opacity: 0;
             animation: fadeIn 0.5s ease-in-out 5s forwards;
-            margin-top: 80px;
+            margin-top: 150px;
         }}
         .n-key-button {{
             display: inline-block;
@@ -1337,7 +1337,7 @@ if not st.session_state.instructions_exp_shown:
     .n-key-prompt-exp {{
         opacity: 0;
         animation: fadeInExp 0.5s ease-in-out 5s forwards;
-        margin-top: 80px;
+        margin-top: 150px;
     }}
     .n-key-button-exp {{
         display: inline-block;
