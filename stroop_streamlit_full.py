@@ -1461,13 +1461,6 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
                       st.session_state.trial_num < len(st.session_state.exp_trials) and
                       completed_block not in st.session_state.breaks_shown)  # 아직 안 보여준 블록만
 
-    # DEBUG: 콘솔에 휴식 체크 로그
-    components.html(f'''
-    <script>
-    console.log('[BREAK CHECK] trial={st.session_state.trial_num}, per_block={trials_per_block}, is_block_start={is_block_start}, showing_break={st.session_state.showing_break}, mode={st.session_state.experiment_mode}');
-    </script>
-    ''', height=0)
-
     # 블록 시작 시 휴식 화면 표시
     if is_block_start and not st.session_state.showing_break:
         st.session_state.showing_break = True
@@ -1476,6 +1469,9 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
 
     # 휴식 화면 표시 중
     if st.session_state.showing_break:
+        # break_start_time이 없으면 지금 시작
+        if st.session_state.break_start_time is None:
+            st.session_state.break_start_time = time.time()
         elapsed_break = time.time() - st.session_state.break_start_time
         remaining_min = max(0, BREAK_MIN - elapsed_break)
         remaining_max = max(0, BREAK_MAX - elapsed_break)
