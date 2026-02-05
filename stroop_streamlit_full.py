@@ -778,19 +778,27 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
 
         # 페이지별 콘텐츠 렌더링
         if current_page == 1:
-            # F/J 키 안내 페이지 (새 스타일)
+            # F/J 키 안내 페이지 (새 스타일) - CSS 클래스 사용
+            st.markdown('''
+            <style>
+            .key-red { color: #FF0000 !important; }
+            .key-green { color: #00FF00 !important; }
+            .key-letter { font-size: 64px; font-weight: bold; }
+            .key-label { font-size: 28px; margin-top: 15px; }
+            </style>
+            ''', unsafe_allow_html=True)
             st.markdown(f'''
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                         min-height: 50vh; color: white; text-align: center; padding-top: 15vh;">
                 <p style="font-size: 32px; margin-bottom: 20px; line-height: 1.6;">{page["lines"][0]}</p>
                 <div style="display: flex; gap: 80px; margin-top: 40px; margin-bottom: 20px;">
                     <div style="text-align: center;">
-                        <span style="font-size: 64px; font-weight: bold; color: #ff4444 !important;">F</span>
-                        <p style="font-size: 28px; margin-top: 15px; color: #ff4444 !important;">빨강</p>
+                        <span class="key-letter key-red">F</span>
+                        <p class="key-label key-red">빨강</p>
                     </div>
                     <div style="text-align: center;">
-                        <span style="font-size: 64px; font-weight: bold; color: #44ff44 !important;">J</span>
-                        <p style="font-size: 28px; margin-top: 15px; color: #44ff44 !important;">초록</p>
+                        <span class="key-letter key-green">J</span>
+                        <p class="key-label key-green">초록</p>
                     </div>
                 </div>
                 <div class="n-key-prompt-p{current_page}">
@@ -1383,18 +1391,26 @@ if not st.session_state.instructions_exp_shown:
 
     # 페이지별 콘텐츠 렌더링
     if current_page == 1:
-        # F/J 키 안내 페이지 (새 스타일)
+        # F/J 키 안내 페이지 (새 스타일) - CSS 클래스 사용
+        st.markdown('''
+        <style>
+        .key-red { color: #FF0000 !important; }
+        .key-green { color: #00FF00 !important; }
+        .key-letter { font-size: 64px; font-weight: bold; }
+        .key-label { font-size: 28px; margin-top: 15px; }
+        </style>
+        ''', unsafe_allow_html=True)
         st.markdown(f'''
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                     min-height: 50vh; color: white; text-align: center; padding-top: 15vh;">
             <div style="display: flex; gap: 80px; margin-bottom: 40px;">
                 <div style="text-align: center;">
-                    <span style="font-size: 64px; font-weight: bold; color: #ff4444 !important;">F</span>
-                    <p style="font-size: 28px; margin-top: 15px; color: #ff4444 !important;">빨강</p>
+                    <span class="key-letter key-red">F</span>
+                    <p class="key-label key-red">빨강</p>
                 </div>
                 <div style="text-align: center;">
-                    <span style="font-size: 64px; font-weight: bold; color: #44ff44 !important;">J</span>
-                    <p style="font-size: 28px; margin-top: 15px; color: #44ff44 !important;">초록</p>
+                    <span class="key-letter key-green">J</span>
+                    <p class="key-label key-green">초록</p>
                 </div>
             </div>
             <p style="font-size: 32px; margin-bottom: 20px; line-height: 1.6;">{page["lines"][0]}</p>
@@ -1631,18 +1647,22 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
             color: white;
             font-weight: bold;
         }
+        .key-red { color: #FF0000 !important; }
+        .key-green { color: #00FF00 !important; }
+        .key-letter { font-size: 64px; font-weight: bold; }
+        .key-label { font-size: 28px; margin-top: 15px; }
         </style>
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                     height: 70vh; color: white; text-align: center;">
             <h2 style="font-size: 36px; margin-bottom: 50px;">키 안내</h2>
             <div style="display: flex; gap: 80px; margin-bottom: 40px;">
                 <div style="text-align: center;">
-                    <span style="font-size: 64px; font-weight: bold; color: #ff4444 !important;">F</span>
-                    <p style="font-size: 28px; margin-top: 15px; color: #ff4444 !important;">빨강</p>
+                    <span class="key-letter key-red">F</span>
+                    <p class="key-label key-red">빨강</p>
                 </div>
                 <div style="text-align: center;">
-                    <span style="font-size: 64px; font-weight: bold; color: #44ff44 !important;">J</span>
-                    <p style="font-size: 28px; margin-top: 15px; color: #44ff44 !important;">초록</p>
+                    <span class="key-letter key-green">J</span>
+                    <p class="key-label key-green">초록</p>
                 </div>
             </div>
             <div class="n-key-button-block"><span>N</span> 키를 눌러 시작</div>
