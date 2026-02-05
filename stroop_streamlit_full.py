@@ -1473,8 +1473,8 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
         if st.session_state.break_start_time is None:
             st.session_state.break_start_time = time.time()
         elapsed_break = time.time() - st.session_state.break_start_time
-        remaining_min = max(0, BREAK_MIN - elapsed_break)
-        remaining_max = max(0, BREAK_MAX - elapsed_break)
+        remaining_min = int(max(0, BREAK_MIN - elapsed_break))
+        remaining_max = int(max(0, BREAK_MAX - elapsed_break))
         can_continue = elapsed_break >= BREAK_MIN
 
         # 최대 시간 초과 시 자동 진행
@@ -1486,65 +1486,27 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
             st.session_state.break_start_time = None
             st.rerun()
 
-        # 휴식 화면 UI - 진행 바 포함
-        progress_percent = min(100, (elapsed_break / BREAK_MAX) * 100)
-        min_marker_percent = (BREAK_MIN / BREAK_MAX) * 100  # 30초 위치 (25%)
-
+        # 휴식 화면 UI (단순 버전)
         if can_continue:
-            # 30초 이상 경과: N 키로 진행 가능
             st.markdown(f'''
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                         height: 60vh; color: white; text-align: center;">
                 <h1 style="font-size: 48px; margin-bottom: 30px;">블록 {completed_block}/{num_blocks} 완료!</h1>
-                <p style="font-size: 28px; margin-bottom: 40px;">잠시 휴식하세요.</p>
-
-                <!-- 진행 바 -->
-                <div style="width: 400px; margin-bottom: 20px;">
-                    <div style="position: relative; height: 12px; background-color: #333; border-radius: 6px; overflow: visible;">
-                        <!-- 진행 표시 -->
-                        <div style="height: 100%; width: {progress_percent}%; background: linear-gradient(90deg, #4CAF50, #8BC34A); border-radius: 6px; transition: width 0.3s;"></div>
-                        <!-- 30초 마커 -->
-                        <div style="position: absolute; left: {min_marker_percent}%; top: -8px; width: 2px; height: 28px; background-color: #888;"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 14px; color: #888;">
-                        <span>0초</span>
-                        <span style="margin-left: {min_marker_percent - 10}%;">▲ 시작 가능</span>
-                        <span>2분 (자동 시작)</span>
-                    </div>
-                </div>
-
-                <p style="font-size: 24px; color: #4CAF50; margin-top: 30px;">준비되면 <span style="color: white; font-weight: bold;">N</span> 키를 눌러 다음 블록을 시작하세요</p>
-                <p style="font-size: 18px; color: #666; margin-top: 10px;">{int(remaining_max)}초 후 자동 시작</p>
+                <p style="font-size: 28px; margin-bottom: 50px;">잠시 휴식하세요.</p>
+                <p style="font-size: 24px; color: #4CAF50;">준비되면 <span style="color: white; font-weight: bold;">N</span> 키를 눌러 다음 블록을 시작하세요</p>
             </div>
             ''', unsafe_allow_html=True)
         else:
-            # 30초 미만: 대기 중
             st.markdown(f'''
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                         height: 60vh; color: white; text-align: center;">
                 <h1 style="font-size: 48px; margin-bottom: 30px;">블록 {completed_block}/{num_blocks} 완료!</h1>
-                <p style="font-size: 28px; margin-bottom: 40px;">잠시 휴식하세요.</p>
-
-                <!-- 진행 바 -->
-                <div style="width: 400px; margin-bottom: 20px;">
-                    <div style="position: relative; height: 12px; background-color: #333; border-radius: 6px; overflow: visible;">
-                        <!-- 진행 표시 -->
-                        <div style="height: 100%; width: {progress_percent}%; background-color: #666; border-radius: 6px; transition: width 0.3s;"></div>
-                        <!-- 30초 마커 -->
-                        <div style="position: absolute; left: {min_marker_percent}%; top: -8px; width: 2px; height: 28px; background-color: #888;"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 14px; color: #888;">
-                        <span>0초</span>
-                        <span style="margin-left: {min_marker_percent - 10}%;">▲ 시작 가능</span>
-                        <span>2분 (자동 시작)</span>
-                    </div>
-                </div>
-
-                <p style="font-size: 24px; color: #888; margin-top: 30px;">{int(remaining_min)}초 후에 시작할 수 있습니다</p>
+                <p style="font-size: 28px; margin-bottom: 50px;">잠시 휴식하세요.</p>
+                <p style="font-size: 24px; color: #888;">{remaining_min}초 후에 시작할 수 있습니다</p>
             </div>
             ''', unsafe_allow_html=True)
 
-        # 숨겨진 버튼 (JavaScript에서 트리거)
+        # 숨겨진 버튼
         st.markdown('''
         <style>
         div[data-testid="stButton"]:has(button[kind="primary"]) {
@@ -1554,7 +1516,6 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
         ''', unsafe_allow_html=True)
 
         if st.button("continue_break", key=f"continue_block_{completed_block}", type="primary"):
-            # set을 명시적으로 재할당 (Streamlit이 변경 감지하도록)
             new_breaks = st.session_state.breaks_shown.copy()
             new_breaks.add(completed_block)
             st.session_state.breaks_shown = new_breaks
@@ -1562,44 +1523,19 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
             st.session_state.break_start_time = None
             st.rerun()
 
-        # N 키 리스너 + 자동 새로고침 (카운트다운 업데이트용)
+        # N 키 리스너 (자동 새로고침 제거)
         components.html(f'''
         <script>
         (function() {{
             const blockNum = {completed_block};
             const canContinue = {'true' if can_continue else 'false'};
-            const BREAK_MAX_MS = {BREAK_MAX * 1000};
-            const elapsedMs = {int(elapsed_break * 1000)};
 
-            // 자동 새로고침 (1초마다 카운트다운 업데이트)
-            if (!window.breakRefreshTimer) {{
-                window.breakRefreshTimer = setInterval(() => {{
-                    parent.location.reload();
-                }}, 1000);
-            }}
-
-            // 최대 시간 후 자동 진행
-            if (!window.breakAutoTimer) {{
-                const remainingMs = BREAK_MAX_MS - elapsedMs;
-                if (remainingMs > 0) {{
-                    window.breakAutoTimer = setTimeout(() => {{
-                        const btn = parent.document.querySelector('button[kind="primary"]');
-                        if (btn) btn.click();
-                    }}, remainingMs);
-                }}
-            }}
-
-            // N 키 핸들러 (30초 이후에만 활성화)
             if (window.breakKeyHandlerInstalled !== blockNum) {{
                 window.breakKeyHandlerInstalled = blockNum;
 
                 function handleBreakKey(e) {{
                     if ((e.key === 'n' || e.key === 'N' || e.code === 'KeyN') && canContinue) {{
                         e.preventDefault();
-                        clearInterval(window.breakRefreshTimer);
-                        clearTimeout(window.breakAutoTimer);
-                        window.breakRefreshTimer = null;
-                        window.breakAutoTimer = null;
                         const btn = parent.document.querySelector('button[kind="primary"]');
                         if (btn) {{
                             btn.click();
@@ -1614,7 +1550,10 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
         }})();
         </script>
         ''', height=0)
-        st.stop()
+
+        # Streamlit 기반 자동 새로고침 (1초마다)
+        time.sleep(1)
+        st.rerun()
 
     # ITI 표시 중인 경우
     if st.session_state.showing_iti:
