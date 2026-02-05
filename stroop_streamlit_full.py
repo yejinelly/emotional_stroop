@@ -1486,7 +1486,7 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
             st.session_state.break_start_time = None
             st.rerun()
 
-        # 휴식 화면 UI (단순 버전)
+        # 휴식 화면 UI
         if can_continue:
             st.markdown(f'''
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -1494,6 +1494,7 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
                 <h1 style="font-size: 48px; margin-bottom: 30px;">블록 {completed_block}/{num_blocks} 완료!</h1>
                 <p style="font-size: 28px; margin-bottom: 50px;">잠시 휴식하세요.</p>
                 <p style="font-size: 24px; color: #4CAF50;">준비되면 <span style="color: white; font-weight: bold;">N</span> 키를 눌러 다음 블록을 시작하세요</p>
+                <p style="font-size: 18px; color: #666; margin-top: 30px;">{remaining_max}초 후 자동 시작</p>
             </div>
             ''', unsafe_allow_html=True)
         else:
@@ -1503,6 +1504,7 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
                 <h1 style="font-size: 48px; margin-bottom: 30px;">블록 {completed_block}/{num_blocks} 완료!</h1>
                 <p style="font-size: 28px; margin-bottom: 50px;">잠시 휴식하세요.</p>
                 <p style="font-size: 24px; color: #888;">{remaining_min}초 후에 시작할 수 있습니다</p>
+                <p style="font-size: 18px; color: #555; margin-top: 30px;">({remaining_max}초 후 자동 시작)</p>
             </div>
             ''', unsafe_allow_html=True)
 
