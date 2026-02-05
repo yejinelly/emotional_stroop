@@ -1486,35 +1486,24 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
             st.session_state.break_start_time = None
             st.rerun()
 
-        # 휴식 화면 UI (Streamlit 진행 바 사용)
-        progress_value = min(1.0, elapsed_break / BREAK_MAX)
-
-        st.markdown(f'''
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
-                    height: 40vh; color: white; text-align: center;">
-            <h1 style="font-size: 48px; margin-bottom: 30px;">블록 {completed_block}/{num_blocks} 완료!</h1>
-            <p style="font-size: 28px;">잠시 휴식하세요.</p>
-        </div>
-        ''', unsafe_allow_html=True)
-
-        # Streamlit 진행 바 (중앙 배치)
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.progress(progress_value)
-            st.markdown('<p style="text-align: center; color: #666; font-size: 12px;">0초 ─────── |30초 ─────── 2분</p>', unsafe_allow_html=True)
-
+        # 휴식 화면 UI (단순 버전)
         if can_continue:
             st.markdown(f'''
-            <div style="text-align: center; color: white; margin-top: 30px;">
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
+                        height: 70vh; color: white; text-align: center;">
+                <h1 style="font-size: 48px; margin-bottom: 40px;">블록 {completed_block}/{num_blocks} 완료!</h1>
+                <p style="font-size: 28px; margin-bottom: 60px;">잠시 휴식하세요.</p>
                 <p style="font-size: 24px; color: #4CAF50;">준비되면 <span style="color: white; font-weight: bold;">N</span> 키를 눌러 다음 블록을 시작하세요</p>
-                <p style="font-size: 18px; color: #666; margin-top: 20px;">{remaining_max}초 후 자동 시작</p>
+                <p style="font-size: 20px; color: #666; margin-top: 40px;">{remaining_max}초 후 자동 시작</p>
             </div>
             ''', unsafe_allow_html=True)
         else:
             st.markdown(f'''
-            <div style="text-align: center; color: white; margin-top: 30px;">
-                <p style="font-size: 24px; color: #888;">{remaining_min}초 후에 시작할 수 있습니다</p>
-                <p style="font-size: 18px; color: #555; margin-top: 20px;">({remaining_max}초 후 자동 시작)</p>
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
+                        height: 70vh; color: white; text-align: center;">
+                <h1 style="font-size: 48px; margin-bottom: 40px;">블록 {completed_block}/{num_blocks} 완료!</h1>
+                <p style="font-size: 28px; margin-bottom: 60px;">잠시 휴식하세요.</p>
+                <p style="font-size: 28px; color: #888;">{remaining_min}초 후에 시작할 수 있습니다</p>
             </div>
             ''', unsafe_allow_html=True)
 
