@@ -1546,10 +1546,26 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
         # 휴식 화면 UI (단순 버전)
         if can_continue:
             st.markdown(f'''
+            <style>
+            .n-key-button-break {{
+                display: inline-block;
+                background-color: #333;
+                border: 2px solid #666;
+                border-radius: 8px;
+                padding: 12px 32px;
+                font-size: 20px;
+                color: #ccc;
+                margin-bottom: 40px;
+            }}
+            .n-key-button-break span {{
+                color: white;
+                font-weight: bold;
+            }}
+            </style>
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                         height: 70vh; color: white; text-align: center;">
                 <h1 style="font-size: 48px; margin-bottom: 40px;">블록 {completed_block}/{num_blocks} 완료!</h1>
-                <p style="font-size: 24px; color: #4CAF50; margin-bottom: 40px;">준비되면 <span style="color: white; font-weight: bold;">N</span> 키를 눌러 다음 블록을 시작하세요</p>
+                <div class="n-key-button-break"><span>N</span> 키를 눌러 다음 블록 시작</div>
                 <p style="font-size: 20px; color: #666;">{remaining_max}초 후 자동 시작</p>
             </div>
             ''', unsafe_allow_html=True)
