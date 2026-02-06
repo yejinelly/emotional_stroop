@@ -727,8 +727,7 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
             },
             {
                 "lines": [
-                    "글자의 색깔이 <span style='color: red;'>빨간색</span>이면 <span style='color: red; font-weight: bold;'>F키</span>,",
-                    "<span style='color: lime;'>초록색</span>이면 <span style='color: lime; font-weight: bold;'>J키</span>를 눌러주세요."
+                    "글자의 색깔에 맞게 키를 누르세요"
                 ],
                 "button": "다음"
             },
@@ -1398,7 +1397,8 @@ if not st.session_state.instructions_exp_shown:
                     <div style="font-size: 32px; margin-top: 15px; color: lime;">초록</div>
                 </div>
             </div>
-            <p style="font-size: 32px; margin-bottom: 20px; line-height: 1.6; color: white;">{page["lines"][0]}</p>
+            <p style="font-size: 28px; margin-bottom: 5px; line-height: 1.6; color: white;">{page["lines"][0]}</p>
+            <p style="font-size: 28px; margin-bottom: 20px; line-height: 1.6; color: white;">{page["lines"][1]}</p>
             <div class="n-key-prompt-e{current_page}">
                 <div class="n-key-button-e{current_page}"><span>N</span> 키를 눌러 {page["button"]}</div>
             </div>
