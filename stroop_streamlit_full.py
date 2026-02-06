@@ -1866,8 +1866,14 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
             // 즉시 자극 숨기기 (서버 rerun 전 시각적 피드백)
             const stimulusEl = parent.document.querySelector('.stimulus-container, .stimulus-container-immediate');
             if (stimulusEl) {{
-                stimulusEl.style.opacity = '0';
-                stimulusEl.style.transition = 'opacity 0.05s';
+                stimulusEl.style.setProperty('visibility', 'hidden', 'important');
+                stimulusEl.style.setProperty('opacity', '0', 'important');
+            }}
+            // h1 요소도 직접 숨기기
+            const h1El = parent.document.querySelector('.stimulus-container h1, .stimulus-container-immediate h1');
+            if (h1El) {{
+                h1El.style.setProperty('visibility', 'hidden', 'important');
+                h1El.style.setProperty('opacity', '0', 'important');
             }}
 
             // 클라이언트 사이드 RT 계산
