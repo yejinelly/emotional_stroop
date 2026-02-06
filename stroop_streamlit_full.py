@@ -721,15 +721,14 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
             {
                 "lines": [
                     "화면에 <strong>색깔로 표시된 단어</strong>가 나타납니다.",
-                    "<strong>단어의 의미는 무시</strong>하고, <span style='font-weight: 900; font-size: 1.1em;'>글자의 색깔만</span> 판단해주세요.",
-                    "<span style='color: red;'>빨간색</span>이면 <span style='color: red; font-weight: bold;'>F키</span>, <span style='color: lime;'>초록색</span>이면 <span style='color: lime; font-weight: bold;'>J키</span>를 눌러주세요."
+                    "<strong>단어의 의미는 무시</strong>하고, <span style='font-weight: 900; font-size: 1.1em;'>글자의 색깔만</span> 판단해주세요."
                 ],
                 "button": "다음"
             },
             {
                 "lines": [
-                    "<strong>단어의 의미는 무시</strong>하고, <span style='font-weight: 900; font-size: 1.1em;'>글자의 색깔만</span> 판단해주세요.",
-                    "<span style='color: red;'>빨간색</span>이면 <span style='color: red; font-weight: bold;'>F키</span>, <span style='color: lime;'>초록색</span>이면 <span style='color: lime; font-weight: bold;'>J키</span>를 눌러주세요."
+                    "글자의 색깔이 <span style='color: red;'>빨간색</span>이면 <span style='color: red; font-weight: bold;'>F키</span>,",
+                    "<span style='color: lime;'>초록색</span>이면 <span style='color: lime; font-weight: bold;'>J키</span>를 눌러주세요."
                 ],
                 "button": "다음"
             },
@@ -783,9 +782,9 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
             st.markdown(f'''
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                         min-height: 50vh; text-align: center; padding-top: 15vh;">
-                <p style="font-size: 32px; margin-bottom: 10px; line-height: 1.6; color: white;">{page["lines"][0]}</p>
+                <p style="font-size: 28px; margin-bottom: 5px; line-height: 1.6; color: white;">{page["lines"][0]}</p>
                 <p style="font-size: 28px; margin-bottom: 20px; line-height: 1.6; color: white;">{page["lines"][1]}</p>
-                <div style="display: flex; gap: 80px; margin-top: 40px; margin-bottom: 20px;">
+                <div style="display: flex; gap: 80px; margin-top: 20px; margin-bottom: 20px;">
                     <div style="text-align: center;">
                         <div style="font-size: 64px; font-weight: bold; color: red;">F</div>
                         <div style="font-size: 32px; margin-top: 15px; color: red;">빨강</div>
@@ -795,19 +794,6 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
                         <div style="font-size: 32px; margin-top: 15px; color: lime;">초록</div>
                     </div>
                 </div>
-                <div class="n-key-prompt-p{current_page}">
-                    <div class="n-key-button-p{current_page}"><span>N</span> 키를 눌러 {page["button"]}</div>
-                </div>
-            </div>
-            ''', unsafe_allow_html=True)
-        elif current_page == 0:
-            # 첫 페이지 (3줄)
-            st.markdown(f'''
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
-                        min-height: 50vh; color: white; text-align: center; padding-top: 15vh;">
-                <p style="font-size: 32px; margin-bottom: 15px; line-height: 1.6;">{page["lines"][0]}</p>
-                <p style="font-size: 32px; margin-bottom: 15px; line-height: 1.6;">{page["lines"][1]}</p>
-                <p style="font-size: 28px; margin-top: 10px; margin-bottom: 0; line-height: 1.6;">{page["lines"][2]}</p>
                 <div class="n-key-prompt-p{current_page}">
                     <div class="n-key-button-p{current_page}"><span>N</span> 키를 눌러 {page["button"]}</div>
                 </div>
@@ -1354,8 +1340,8 @@ if not st.session_state.instructions_exp_shown:
         },
         {
             "lines": [
-                "<strong>단어의 의미는 무시</strong>하고, <span style='font-weight: 900; font-size: 1.1em;'>글자의 색깔만</span> 판단해주세요.",
-                "<span style='color: red;'>빨간색</span>이면 <span style='color: red; font-weight: bold;'>F키</span>, <span style='color: lime;'>초록색</span>이면 <span style='color: lime; font-weight: bold;'>J키</span>를 눌러주세요."
+                "글자의 색깔이 <span style='color: red;'>빨간색</span>이면 <span style='color: red; font-weight: bold;'>F키</span>,",
+                "<span style='color: lime;'>초록색</span>이면 <span style='color: lime; font-weight: bold;'>J키</span>를 눌러주세요."
             ],
             "button": "본 과제 시작"
         }
@@ -1665,8 +1651,8 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
         </style>
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                     height: 70vh; text-align: center;">
-            <p style="font-size: 32px; margin-bottom: 10px; color: white;"><strong>단어의 의미는 무시</strong>하고, <span style='font-weight: 900; font-size: 1.1em;'>글자의 색깔만</span> 판단해주세요.</p>
-            <p style="font-size: 28px; margin-bottom: 40px; color: white;"><span style='color: red;'>빨간색</span>이면 <span style='color: red; font-weight: bold;'>F키</span>, <span style='color: lime;'>초록색</span>이면 <span style='color: lime; font-weight: bold;'>J키</span>를 눌러주세요.</p>
+            <p style="font-size: 28px; margin-bottom: 5px; color: white;">글자의 색깔이 <span style='color: red;'>빨간색</span>이면 <span style='color: red; font-weight: bold;'>F키</span>,</p>
+            <p style="font-size: 28px; margin-bottom: 30px; color: white;"><span style='color: lime;'>초록색</span>이면 <span style='color: lime; font-weight: bold;'>J키</span>를 눌러주세요.</p>
             <div style="display: flex; gap: 80px; margin-bottom: 40px;">
                 <div style="text-align: center;">
                     <div style="font-size: 64px; font-weight: bold; color: red;">F</div>
