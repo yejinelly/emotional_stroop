@@ -1822,6 +1822,12 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
             clearTimeout(window.stroopTimeoutTimer);
         }}
 
+        // 이전 반응 오버레이 제거
+        const prevOverlay = parent.document.getElementById('response-overlay');
+        if (prevOverlay) {{
+            prevOverlay.remove();
+        }}
+
         // Timeout 핸들러 - 3초 후 자동으로 timeout 버튼 클릭
         window.stroopTimeoutTimer = setTimeout(function() {{
             if (!window.stroopResponseMade) {{
@@ -1863,17 +1869,15 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
                 clearTimeout(window.stroopTimeoutTimer);
             }}
 
-            // 즉시 자극 숨기기 (서버 rerun 전 시각적 피드백)
-            const stimulusEl = parent.document.querySelector('.stimulus-container, .stimulus-container-immediate');
-            if (stimulusEl) {{
-                stimulusEl.style.setProperty('visibility', 'hidden', 'important');
-                stimulusEl.style.setProperty('opacity', '0', 'important');
-            }}
-            // h1 요소도 직접 숨기기
-            const h1El = parent.document.querySelector('.stimulus-container h1, .stimulus-container-immediate h1');
-            if (h1El) {{
-                h1El.style.setProperty('visibility', 'hidden', 'important');
-                h1El.style.setProperty('opacity', '0', 'important');
+            // 즉시 자극 숨기기 (검은 오버레이로 덮기)
+            let overlay = parent.document.getElementById('response-overlay');
+            if (!overlay) {{
+                overlay = parent.document.createElement('div');
+                overlay.id = 'response-overlay';
+                overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000;z-index:9999;';
+                parent.document.body.appendChild(overlay);
+            }} else {{
+                overlay.style.display = 'block';
             }}
 
             // 클라이언트 사이드 RT 계산
