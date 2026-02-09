@@ -1479,6 +1479,15 @@ if not st.session_state.instructions_exp_shown:
 
 # 4. Task 완료 화면
 if st.session_state.task_completed:
+    # 이전 trial의 반응 오버레이 제거
+    st.markdown('''
+    <script>
+    (function() {
+        const overlay = parent.document.getElementById('response-overlay');
+        if (overlay) overlay.remove();
+    })();
+    </script>
+    ''', unsafe_allow_html=True)
     st.title("✅ 과제 완료!")
     st.markdown("모든 시행을 완료했습니다. 감사합니다!")
 
@@ -1536,6 +1545,15 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
 
     # 휴식 화면 표시 중
     if st.session_state.showing_break:
+        # 이전 trial의 반응 오버레이 제거
+        st.markdown('''
+        <script>
+        (function() {
+            const overlay = parent.document.getElementById('response-overlay');
+            if (overlay) overlay.remove();
+        })();
+        </script>
+        ''', unsafe_allow_html=True)
         # break_start_time이 없으면 지금 시작
         if st.session_state.break_start_time is None:
             st.session_state.break_start_time = time.time()
@@ -1642,6 +1660,15 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
 
     # 블록 시작 전 키 안내 화면
     if st.session_state.show_block_key_reminder:
+        # 이전 trial의 반응 오버레이 제거
+        st.markdown('''
+        <script>
+        (function() {
+            const overlay = parent.document.getElementById('response-overlay');
+            if (overlay) overlay.remove();
+        })();
+        </script>
+        ''', unsafe_allow_html=True)
         st.markdown('''
         <style>
         .n-key-button-block {
