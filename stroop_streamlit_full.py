@@ -976,6 +976,9 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
             const MAX_RESPONSE_TIME = {int(MAX_RESPONSE_TIME * 1000)};  // ms
             const STIMULUS_DELAY = {stimulus_delay};  // ms (첫 시행 500ms, 피드백 있으면 1300ms, 그 외 300ms)
 
+            // 현재 trial 번호를 parent에 기록 (backup에서 trial 변경 감지용)
+            parent.window._stroopCurrentPracticeTrial = tryNum;
+
             // 반응 버튼 숨기기 (키보드로만 반응)
             function hideResponseButtons() {{
                 const allButtons = parent.document.querySelectorAll('button');
@@ -1077,22 +1080,28 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
                         console.log('Practice clicking', color, 'button');
                         targetBtn.click();
 
-                        // Backup: 클릭 후 500ms 내에 페이지가 안 바뀌면 timeout 버튼 클릭
-                        setTimeout(() => {{
+                        // Backup: trial이 안 바뀌면 timeout 버튼 클릭 (polling 방식)
+                        let _backupChecks = 0;
+                        const _backupInterval = setInterval(() => {{
+                            _backupChecks++;
+                            if (parent.window._stroopCurrentPracticeTrial !== tryNum) {{
+                                clearInterval(_backupInterval);
+                                return;
+                            }}
                             const currentButtons = parent.document.querySelectorAll('button');
                             const hasTrialButtons = [...currentButtons].some(btn => {{
                                 const text = btn.textContent || btn.innerText;
                                 return text.includes('빨강') || text.includes('초록');
                             }});
-
                             if (!hasTrialButtons) {{
+                                clearInterval(_backupInterval);
                                 return;
                             }}
-
-                            console.error('Practice button click did not trigger page change! Clicking timeout as backup.');
-                            const backupTimeoutBtn = [...currentButtons].find(btn => btn.textContent === 'timeout');
-                            if (backupTimeoutBtn) {{
-                                backupTimeoutBtn.click();
+                            if (_backupChecks >= 4) {{
+                                clearInterval(_backupInterval);
+                                console.error('Practice button click did not trigger page change after 2s! Clicking timeout as backup.');
+                                const backupTimeoutBtn = [...currentButtons].find(btn => btn.textContent === 'timeout');
+                                if (backupTimeoutBtn) backupTimeoutBtn.click();
                             }}
                         }}, 500);
                     }} else if (retryCount < 3) {{
@@ -1811,6 +1820,9 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
         const MAX_RESPONSE_TIME = {int(MAX_RESPONSE_TIME * 1000)};  // ms
         const STIMULUS_DELAY = {stimulus_delay};  // ms (첫 시행 500ms, 이후 300ms)
 
+        // 현재 trial 번호를 parent에 기록 (backup에서 trial 변경 감지용)
+        parent.window._stroopCurrentTrial = tryNum;
+
         // 자극 표시 시점 기록 (첫 시행: fixation 0.5초 후, 이후: 0.3초 후)
         window.stimulusShownTime = performance.now() + STIMULUS_DELAY;
         console.log('Stimulus will be shown at:', window.stimulusShownTime, '(delay:', STIMULUS_DELAY, 'ms)');
@@ -1912,26 +1924,32 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
                     console.log('Clicking', color, 'button');
                     targetBtn.click();
 
-                    // Backup: 클릭 후 500ms 내에 페이지가 안 바뀌면 timeout 버튼 클릭
-                    setTimeout(() => {{
-                        // 페이지가 이미 바뀌었는지 확인 (trial 버튼이 여전히 존재하는지)
+                    // Backup: trial이 안 바뀌면 timeout 버튼 클릭 (polling 방식)
+                    let _backupChecks = 0;
+                    const _backupInterval = setInterval(() => {{
+                        _backupChecks++;
+                        // trial 번호가 바뀌었으면 정상 전환된 것
+                        if (parent.window._stroopCurrentTrial !== tryNum) {{
+                            clearInterval(_backupInterval);
+                            return;
+                        }}
+                        // 버튼이 사라졌으면 ITI/휴식 화면으로 전환된 것
                         const currentButtons = parent.document.querySelectorAll('button');
                         const hasTrialButtons = [...currentButtons].some(btn => {{
                             const text = btn.textContent || btn.innerText;
                             return text.includes('빨강') || text.includes('초록');
                         }});
-
                         if (!hasTrialButtons) {{
-                            // 페이지가 이미 전환됨 (ITI, 휴식 화면 등) - 정상 작동
+                            clearInterval(_backupInterval);
                             return;
                         }}
-
-                        console.error('Button click did not trigger page change! Clicking timeout as backup.');
-                        const backupTimeoutBtn = [...currentButtons].find(btn => btn.textContent === 'timeout');
-                        if (backupTimeoutBtn) {{
-                            backupTimeoutBtn.click();
+                        // 2초(4회) 경과 후에도 같은 trial이면 클릭 실패 → timeout 클릭
+                        if (_backupChecks >= 4) {{
+                            clearInterval(_backupInterval);
+                            console.error('Button click did not trigger page change after 2s! Clicking timeout as backup.');
+                            const backupTimeoutBtn = [...currentButtons].find(btn => btn.textContent === 'timeout');
+                            if (backupTimeoutBtn) backupTimeoutBtn.click();
                         }}
-                        // timeout 버튼이 없으면 서버 사이드 timeout이 처리하므로 reload 불필요
                     }}, 500);
                 }} else if (retryCount < 3) {{
                     console.log('Button not found, retrying... (attempt', retryCount + 1, ')');
