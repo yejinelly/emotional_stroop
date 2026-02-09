@@ -1079,13 +1079,20 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
 
                         // Backup: 클릭 후 500ms 내에 페이지가 안 바뀌면 timeout 버튼 클릭
                         setTimeout(() => {{
+                            const currentButtons = parent.document.querySelectorAll('button');
+                            const hasTrialButtons = [...currentButtons].some(btn => {{
+                                const text = btn.textContent || btn.innerText;
+                                return text.includes('빨강') || text.includes('초록');
+                            }});
+
+                            if (!hasTrialButtons) {{
+                                return;
+                            }}
+
                             console.error('Practice button click did not trigger page change! Clicking timeout as backup.');
-                            const backupTimeoutBtn = [...parent.document.querySelectorAll('button')].find(btn => btn.textContent === 'timeout');
+                            const backupTimeoutBtn = [...currentButtons].find(btn => btn.textContent === 'timeout');
                             if (backupTimeoutBtn) {{
                                 backupTimeoutBtn.click();
-                            }} else {{
-                                console.error('Backup timeout button not found! Forcing page reload.');
-                                parent.location.reload();
                             }}
                         }}, 500);
                     }} else if (retryCount < 3) {{
@@ -1096,9 +1103,6 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
                         console.error('Practice FAILED to find button after 3 retries! Clicking timeout as fallback.');
                         if (timeoutBtn) {{
                             timeoutBtn.click();
-                        }} else {{
-                            console.error('Timeout button also not found! Forcing page reload.');
-                            parent.location.reload();
                         }}
                     }}
                 }}
@@ -1910,14 +1914,24 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
 
                     // Backup: 클릭 후 500ms 내에 페이지가 안 바뀌면 timeout 버튼 클릭
                     setTimeout(() => {{
+                        // 페이지가 이미 바뀌었는지 확인 (trial 버튼이 여전히 존재하는지)
+                        const currentButtons = parent.document.querySelectorAll('button');
+                        const hasTrialButtons = [...currentButtons].some(btn => {{
+                            const text = btn.textContent || btn.innerText;
+                            return text.includes('빨강') || text.includes('초록');
+                        }});
+
+                        if (!hasTrialButtons) {{
+                            // 페이지가 이미 전환됨 (ITI, 휴식 화면 등) - 정상 작동
+                            return;
+                        }}
+
                         console.error('Button click did not trigger page change! Clicking timeout as backup.');
-                        const backupTimeoutBtn = [...parent.document.querySelectorAll('button')].find(btn => btn.textContent === 'timeout');
+                        const backupTimeoutBtn = [...currentButtons].find(btn => btn.textContent === 'timeout');
                         if (backupTimeoutBtn) {{
                             backupTimeoutBtn.click();
-                        }} else {{
-                            console.error('Backup timeout button not found! Forcing page reload.');
-                            parent.location.reload();
                         }}
+                        // timeout 버튼이 없으면 서버 사이드 timeout이 처리하므로 reload 불필요
                     }}, 500);
                 }} else if (retryCount < 3) {{
                     console.log('Button not found, retrying... (attempt', retryCount + 1, ')');
@@ -1927,10 +1941,8 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
                     console.error('FAILED to find button after 3 retries! Clicking timeout as fallback.');
                     if (timeoutBtn) {{
                         timeoutBtn.click();
-                    }} else {{
-                        console.error('Timeout button also not found! Forcing page reload.');
-                        parent.location.reload();
                     }}
+                    // 서버 사이드 timeout이 처리하므로 reload 불필요
                 }}
             }}
 
