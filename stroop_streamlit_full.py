@@ -724,7 +724,7 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
                 "lines": [
                     "화면에 단어가 나타납니다.",
                     "<span style='font-weight: 900; font-size: 1.1em;'>글자의 색깔</span>에 따라 키를 눌러주세요.",
-                    "<span style='color: #888; font-size: 0.85em;'>마우스 커서는 화면 밖으로 이동해주세요.</span>"
+                    "<span style='color: #888; font-size: 0.85em; display: inline-block; margin-top: 20px;'>마우스 커서는 화면 밖으로 이동해주세요.</span>"
                 ],
                 "button": "다음"
             },
