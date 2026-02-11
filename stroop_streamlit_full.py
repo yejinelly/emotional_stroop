@@ -1515,14 +1515,6 @@ if st.session_state.task_completed:
             else:
                 st.warning(f"⚠️ Google Sheets 백업 실패: {backup_msg}")
 
-        # CSV 다운로드 버튼 (Excel 호환 인코딩)
-        csv_data = df.to_csv(index=False).encode('utf-8-sig')
-        st.download_button(
-            label="📥 결과 CSV 다운로드",
-            data=csv_data,
-            file_name=f"{st.session_state.participant_id}_result.csv",
-            mime="text/csv"
-        )
 
     st.stop()
 
