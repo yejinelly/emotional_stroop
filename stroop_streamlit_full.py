@@ -360,6 +360,8 @@ if 'break_start_time' not in st.session_state:
     st.session_state.break_start_time = None  # 휴식 시작 시간
 if 'show_block_key_reminder' not in st.session_state:
     st.session_state.show_block_key_reminder = False  # 블록 시작 전 키 안내 표시
+if 'block_first_trial_num' not in st.session_state:
+    st.session_state.block_first_trial_num = 0  # 현재 블록의 첫 시행 번호
 if 'experiment_start_time' not in st.session_state:
     st.session_state.experiment_start_time = None  # 본 시행 시작 시간
 if 'showing_practice_redo' not in st.session_state:
@@ -721,7 +723,8 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
             {
                 "lines": [
                     "화면에 <strong>색깔로 표시된 단어</strong>가 나타납니다.",
-                    "<strong>단어의 의미는 무시</strong>하고, <span style='font-weight: 900; font-size: 1.1em;'>글자의 색깔만</span> 판단해주세요."
+                    "<strong>단어의 의미는 무시</strong>하고, <span style='font-weight: 900; font-size: 1.1em;'>글자의 색깔</span>에 따라 키를 눌러주세요.",
+                    "<span style='color: #888; font-size: 0.85em;'>마우스 커서는 화면 밖으로 이동해주세요.</span>"
                 ],
                 "button": "다음"
             },
@@ -798,12 +801,12 @@ if not st.session_state.practice_completed and not st.session_state.showing_prac
             </div>
             ''', unsafe_allow_html=True)
         else:
-            # 일반 페이지 (2줄)
+            # 일반 페이지
+            lines_html = ''.join(f'<p style="font-size: 32px; margin-bottom: 20px; line-height: 1.6;">{line}</p>' for line in page["lines"])
             st.markdown(f'''
             <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;
                         min-height: 50vh; color: white; text-align: center; padding-top: 15vh;">
-                <p style="font-size: 32px; margin-bottom: 20px; line-height: 1.6;">{page["lines"][0]}</p>
-                <p style="font-size: 32px; margin-top: 20px; margin-bottom: 0; line-height: 1.6;">{page["lines"][1]}</p>
+                {lines_html}
                 <div class="n-key-prompt-p{current_page}">
                     <div class="n-key-button-p{current_page}"><span>N</span> 키를 눌러 {page["button"]}</div>
                 </div>
@@ -1714,6 +1717,7 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
 
         if st.button("start_block", key="start_block_after_break", type="secondary"):
             st.session_state.show_block_key_reminder = False
+            st.session_state.block_first_trial_num = st.session_state.trial_num
             st.rerun()
 
         # N 키 리스너
@@ -1742,35 +1746,36 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
         ''', height=0)
         st.stop()
 
-    # ITI 표시 중인 경우
+    # ITI 표시 중인 경우 (단일 sleep으로 처리하여 rerun 최소화)
     if st.session_state.showing_iti:
-        # ITI 완료 체크
         elapsed_iti = time.time() - st.session_state.iti_start_time
-        if elapsed_iti >= st.session_state.current_iti_duration:
-            # ITI 완료 → 다음 trial로
-            st.session_state.showing_iti = False
-            st.session_state.iti_start_time = None
-            st.session_state.last_was_timeout = False
-            st.rerun()
-        else:
-            # ITI 중: 검은 화면 또는 timeout 피드백
-            if st.session_state.last_was_timeout:
-                st.markdown('''
-                <div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
-                            background-color: rgba(255, 165, 0, 0.2);
-                            border: 2px solid #FFA500;
-                            color: #FFA500;
-                            padding: 15px 30px;
-                            border-radius: 8px;
-                            font-size: 24px;
-                            font-weight: bold;
-                            z-index: 999;">
-                    너무 느립니다
-                </div>
-                ''', unsafe_allow_html=True)
-            # 잠시 후 rerun (ITI 대기)
-            time.sleep(0.1)
-            st.rerun()
+        remaining = st.session_state.current_iti_duration - elapsed_iti
+
+        # timeout 피드백 표시 (필요 시)
+        if st.session_state.last_was_timeout:
+            st.markdown('''
+            <div style="position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
+                        background-color: rgba(255, 165, 0, 0.2);
+                        border: 2px solid #FFA500;
+                        color: #FFA500;
+                        padding: 15px 30px;
+                        border-radius: 8px;
+                        font-size: 24px;
+                        font-weight: bold;
+                        z-index: 999;">
+                너무 느립니다
+            </div>
+            ''', unsafe_allow_html=True)
+
+        # 남은 ITI 시간만큼 한 번에 sleep (rerun 횟수 최소화)
+        if remaining > 0:
+            time.sleep(remaining)
+
+        # ITI 완료 → 다음 trial로
+        st.session_state.showing_iti = False
+        st.session_state.iti_start_time = None
+        st.session_state.last_was_timeout = False
+        st.rerun()
         st.stop()
 
     trial = st.session_state.exp_trials.iloc[st.session_state.trial_num]
@@ -1780,8 +1785,8 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
     if client_rt is not None:
         st.session_state.pending_client_rt = client_rt
 
-    # 첫 시행 여부 (블록 내 첫 시행)
-    is_first_trial = st.session_state.trial_num == 0
+    # 첫 시행 여부 (블록 내 첫 시행 - 각 블록 시작 시 fixation cross 표시)
+    is_first_trial = st.session_state.trial_num == st.session_state.block_first_trial_num
 
     # Timeout 체크 (서버 사이드)
     if st.session_state.start_time is not None:
@@ -1921,7 +1926,13 @@ if st.session_state.trial_num < len(st.session_state.exp_trials):
                 parent.document.body.appendChild(overlay);
             }} else {{
                 overlay.style.display = 'block';
+                overlay.innerHTML = '';
             }}
+            // 안전장치: 3초 후 overlay 자동 제거
+            setTimeout(() => {{
+                const ol = parent.document.getElementById('response-overlay');
+                if (ol) ol.remove();
+            }}, 3000);
 
             // 클라이언트 사이드 RT 계산
             const keyPressTime = performance.now();
